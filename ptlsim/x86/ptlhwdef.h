@@ -1423,6 +1423,9 @@ enum {
   // Special Opcodes
   OP_ast,
   OP_MAX_OPCODE,
+
+  // LAP Opcode
+  OP_gemm
 };
 
 // Limit for shls, shrs, sars rb immediate:
