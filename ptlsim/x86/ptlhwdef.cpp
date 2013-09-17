@@ -184,6 +184,8 @@ const OpcodeInfo opinfo[OP_MAX_OPCODE] = {
   {"vpack.ss",       OPCLASS_VEC_ALU,       opAB }, // pack larger to smaller (signed saturation)
   // Special Opcodes
   {"ast",			 OPCLASS_SPECIAL,		opABC|ccABC },// special assist functions
+  
+  {"gemm",            OPCLASS_LOGIC,         opNOSIZE   },
 };
 
 const char* exception_names[EXCEPTION_COUNT] = {

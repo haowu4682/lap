@@ -20,6 +20,7 @@
 
 namespace Core {
     struct BaseCore;
+    struct Accelerator;
 };
 
 namespace Memory {
@@ -45,6 +46,7 @@ struct ConnectionDef {
 
 struct BaseMachine: public PTLsimMachine {
     dynarray<Core::BaseCore*> cores;
+    dynarray<Core::Accelerator*> accelerators;
     dynarray<Memory::Controller*> controllers;
     dynarray<Memory::Interconnect*> interconnects;
     dynarray<ConnectionDef*> connections;

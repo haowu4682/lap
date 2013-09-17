@@ -377,6 +377,7 @@ namespace ATOM_CORE_MODEL {
         {OP_vpack_ss,       2, P1, 1, ANYFPU},
         // Special Opcodes
         {OP_ast,			4, P0, 0, ANYINT},
+        {OP_gemm,           A, AP, 1, ANYFU }
     };
 
 #undef A

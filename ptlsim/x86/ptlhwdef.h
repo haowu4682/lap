@@ -1422,10 +1422,13 @@ enum {
   OP_vpack_ss,
   // Special Opcodes
   OP_ast,
-  OP_MAX_OPCODE,
-
   // LAP Opcode
-  OP_gemm
+  OP_gemm,
+
+
+  // END of Opcode Enum
+  OP_MAX_OPCODE
+
 };
 
 // Limit for shls, shrs, sars rb immediate:

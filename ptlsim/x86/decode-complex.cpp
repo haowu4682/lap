@@ -1122,7 +1122,17 @@ bool TraceDecoder::decode_complex() {
     break;
   }
 
-  case 0x64 ... 0x67: {
+  case 0x64: {
+    // GEMM [used by LAP]
+    EndOfDecode();
+    printf("Hello We are having a LAP instruction!\n");
+    // TODO Simulate the delay for interconnect
+    // TODO Send the address to the accelarator
+    // TODO Verify that the accelarator is actually a LAP accelerator
+
+    break;
+  }
+  case 0x65 ... 0x67: {
     // invalid (prefixes)
     MakeInvalid();
     break;
