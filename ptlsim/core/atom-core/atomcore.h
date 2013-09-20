@@ -524,6 +524,8 @@ namespace ATOM_CORE_MODEL {
         W64  get_phys_address(TransOp& uop, bool is_st, W64 virtaddr);
         void dtlb_walk_completed();
 
+        W8   execute_gemm(TransOp& uop, int idx);
+
         // Forward
         void forward();
         
