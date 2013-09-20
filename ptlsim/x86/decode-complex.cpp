@@ -1106,7 +1106,16 @@ bool TraceDecoder::decode_complex() {
 
   case 0x60: {
     // pusha [not used by gcc]
-    MakeInvalid();
+    // We use this for GEMM currently
+    //MakeInvalid();
+    printf("Hello We are having a LAP instruction!\n");
+    EndOfDecode();
+
+    // TODO Send the address to the accelarator
+    // TODO Verify that the accelarator is actually a LAP accelerator
+    // TODO Verify correctness of the trans op
+    this << TransOp(OP_gemm, REG_rdi, REG_rsi, REG_zero, REG_zero, 0);
+
     break;
   }
 
@@ -1123,12 +1132,9 @@ bool TraceDecoder::decode_complex() {
   }
 
   case 0x64: {
-    // GEMM [used by LAP]
+    // GEMM [reserved to be used by LAP]
     EndOfDecode();
-    printf("Hello We are having a LAP instruction!\n");
-    // TODO Simulate the delay for interconnect
-    // TODO Send the address to the accelarator
-    // TODO Verify that the accelarator is actually a LAP accelerator
+    printf("Hello We are having a LAP instruction! But we do not use it right now. Just do nothing.\n");
 
     break;
   }

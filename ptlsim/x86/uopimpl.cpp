@@ -1781,6 +1781,12 @@ uopimpl_func_t get_synthcode_for_uop(int op, int size, bool setflags, int cond, 
     func = implmap_vpack_us[size]; break;
   case OP_vpack_ss:
     func = implmap_vpack_ss[size]; break;
+
+    // GEMM op
+    // This should be handled in the core module
+  case OP_gemm:
+    func = uop_impl_nop; break;
+
   default:
     ptl_logfile << "Unknown uop opcode ", op, flush, " (", nameof(op), ")", endl, flush;
     assert(false);
