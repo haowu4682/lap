@@ -9,3 +9,9 @@ Accelerator::Accelerator(BaseMachine& machine, const char* name)
 {
 }
 
+int Accelerator::exec(int arg)
+{
+    printf("Caught an accelerator exec!\n");
+    printf("arg + 10 = %d", arg + 10);
+}
+

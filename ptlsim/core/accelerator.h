@@ -14,10 +14,7 @@ namespace Core {
         virtual ~Accelerator() {}
 
         // TODO Pure Abstract function
-        virtual int exec() {
-            printf("Inside Accelerator");
-            return 0;
-        }
+        virtual int exec(int arg);
 
         BaseMachine& machine;
         Memory::MemoryHierarchy* memoryHierarchy;
