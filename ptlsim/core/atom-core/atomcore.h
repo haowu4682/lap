@@ -378,7 +378,8 @@ namespace ATOM_CORE_MODEL {
         {OP_vpack_us,       2, P1, 1, ANYFPU},
         {OP_vpack_ss,       2, P1, 1, ANYFPU},
         // Special Opcodes
-        {OP_ast,			GEMMLAT, P0, 0, ANYFU},
+        {OP_ast,			4, P0, 0, ANYINT},
+        {OP_gemm,			GEMMLAT, P0, 0, ANYFU},
     };
 
 #undef A
@@ -524,6 +525,8 @@ namespace ATOM_CORE_MODEL {
         W64  get_virt_address(TransOp& uop, bool is_st);
         W64  get_phys_address(TransOp& uop, bool is_st, W64 virtaddr);
         void dtlb_walk_completed();
+
+        W8   execute_gemm(TransOp& uop, int idx);
 
         // Forward
         void forward();

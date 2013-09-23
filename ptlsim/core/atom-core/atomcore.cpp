@@ -14,6 +14,7 @@
 #include <branchpred.h>
 #include <decode.h>
 #include <memoryHierarchy.h>
+#include <accelerator.h>
 
 //#define DISABLE_LDST_FWD
 
@@ -713,6 +714,8 @@ W8 AtomOp::execute_uop(W8 idx)
     } else if(uop.opcode == OP_ast) {
         issue_result = execute_ast(uop);
 
+    } else if (uop.opcode == OP_gemm) { // LAP micro code execute
+        issue_result = execute_gemm(uop, idx);
     } else {
 
         if(isbranch(uop.opcode)) {
@@ -850,6 +853,23 @@ W8 AtomOp::execute_ast(TransOp& uop)
     thread->lassists[assistid]++;
 
     ATOMOPLOG2("Flags after ast: ", hexstring(new_flags, 16));
+
+    return ISSUE_OK;
+}
+
+
+/**
+ * @brief Execute one gemm uop
+ *
+ * @param uop TransOp to execute
+ *
+ * @return Issue status
+ */
+W8 AtomOp::execute_gemm(TransOp& uop, int idx)
+{
+    // Call the accelerator (LAP)
+    thread->core.machine.accelerators[0]->exec(uop.rd);
+    // TODO Poll
 
     return ISSUE_OK;
 }
@@ -2247,7 +2267,7 @@ bool AtomThread::issue()
         if(dispatchq.empty()) {
             break;
         }
-        
+
         if(!commitbuf.remaining()) {
             break;
         }
