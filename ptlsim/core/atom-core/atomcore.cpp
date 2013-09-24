@@ -868,7 +868,7 @@ W8 AtomOp::execute_ast(TransOp& uop)
 W8 AtomOp::execute_gemm(TransOp& uop, int idx)
 {
     // Call the accelerator (LAP)
-    thread->core.machine.accelerators[0]->exec(uop.rd);
+    thread->core.machine.accelerators[0]->exec(radata);
     // TODO Poll
 
     return ISSUE_OK;

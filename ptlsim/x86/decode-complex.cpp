@@ -1114,7 +1114,7 @@ bool TraceDecoder::decode_complex() {
     // TODO Send the address to the accelarator
     // TODO Verify that the accelarator is actually a LAP accelerator
     // TODO Verify correctness of the trans op
-    this << TransOp(OP_gemm, REG_rdi, REG_rsi, REG_zero, REG_zero, 0);
+    this << TransOp(OP_gemm, REG_zero, REG_rdi, REG_zero, REG_zero, 0);
 
     break;
   }
@@ -1456,7 +1456,7 @@ bool TraceDecoder::decode_complex() {
     // TODO Send the address to the accelarator
     // TODO Verify that the accelarator is actually a LAP accelerator
     // TODO Verify correctness of the trans op
-    this << TransOp(OP_gemm, REG_rdi, REG_rsi, REG_zero, REG_zero, 0);
+    this << TransOp(OP_gemm, REG_zero, REG_rdi, REG_zero, REG_zero, 0);
 
     break;
   }
@@ -1858,7 +1858,18 @@ bool TraceDecoder::decode_complex() {
   case 0xd7: {
     // xlat
     // (not used by gcc)
-    MakeInvalid();
+    // MakeInvalid();
+
+    // Used for GEMM
+    printf("Hello We are having a LAP instruction!\n");
+    EndOfDecode();
+
+    // TODO Send the address to the accelarator
+    // TODO Verify that the accelarator is actually a LAP accelerator
+    // TODO Verify correctness of the trans op
+    this << TransOp(OP_gemm, REG_zero, REG_rdi, REG_zero, REG_zero, 0);
+    printf("End of transop\n");
+
     break;
   }
 

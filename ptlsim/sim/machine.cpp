@@ -12,6 +12,7 @@
 #include <ptlsim.h>
 #include <config.h>
 
+#include <accelerator.h>
 #include <basecore.h>
 #include <statsBuilder.h>
 #include <memoryHierarchy.h>
@@ -34,6 +35,9 @@ BaseMachine::BaseMachine(const char *name)
     stringbuf stats_name;
     stats_name << "base_machine";
     update_name(stats_name.buf);
+
+    // TODO Move this hard-coded stuff to use config files
+    accelerators.push(new Core::Accelerator((*this), "LAP"));
 
     context_used = 0;
     coreid_counter = 0;
