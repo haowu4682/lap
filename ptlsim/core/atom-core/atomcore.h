@@ -188,6 +188,8 @@ namespace ATOM_CORE_MODEL {
 #define FPU3 (FU_FPU3 * ((FPU_FU_COUNT - 4) >= 0))
 #define A ALULAT // ALU latency, assuming fast bypass
 #define L LOADLAT
+// TODO Provide an exact latency
+#define GEMMLAT ALULAT
 
 #define ANYALU ALU0|ALU1|ALU2|ALU3
 #define ANYLDU AGU0|AGU1|AGU2|AGU3
@@ -377,7 +379,7 @@ namespace ATOM_CORE_MODEL {
         {OP_vpack_ss,       2, P1, 1, ANYFPU},
         // Special Opcodes
         {OP_ast,			4, P0, 0, ANYINT},
-        {OP_gemm,           A, AP, 1, ANYFU }
+        {OP_gemm,			GEMMLAT, P0, 0, ANYFU},
     };
 
 #undef A
