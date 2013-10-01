@@ -165,6 +165,8 @@ bool CacheController::handle_interconnect_cb(void *arg)
 
 	memdebug("Message received is: ", *msg);
 
+    //if (msg->request->get_coreid() ==1 )
+    //    printf("inside interconnect callback.\n");
 	if(sender == upperInterconnect_ || sender == upperInterconnect2_) {
 
 		if(msg->hasData && msg->request->get_type() !=
@@ -183,6 +185,9 @@ bool CacheController::handle_interconnect_cb(void *arg)
 
 		memdebug(get_name() <<
 				" Received message from upper interconnect\n");
+
+        //if (msg->request->get_coreid() ==1 )
+        //    printf("upper interconnect.\n");
 
 		CacheQueueEntry *queueEntry = pendingRequests_.alloc();
 
@@ -213,6 +218,9 @@ bool CacheController::handle_interconnect_cb(void *arg)
 				wt_disabled_ == false) {
 			if(type_ == L2_CACHE || type_ == L3_CACHE) {
 				memdebug("L2/L3 cache update sending to lower\n");
+                //if (msg->request->get_coreid() ==1 )
+                //    printf("L2/L3 cache update sending to lower\n");
+
 				queueEntry->eventFlags[
 					CACHE_WAIT_INTERCONNECT_EVENT]++;
 				queueEntry->sendTo = lowerInterconnect_;
@@ -227,6 +235,8 @@ bool CacheController::handle_interconnect_cb(void *arg)
 		if(dependsOn) {
 			/* Found an dependency */
 			memdebug("dependent entry: " << *dependsOn << endl);
+            //if (msg->request->get_coreid() ==1 )
+            //    printf("dependent: TRUE\n");
 			dependsOn->depends = queueEntry->idx;
 			dependsOn->dependsAddr = queueEntry->request->get_physical_address();
 			OP_TYPE type = queueEntry->request->get_type();
@@ -237,6 +247,8 @@ bool CacheController::handle_interconnect_cb(void *arg)
 				N_STAT_UPDATE(new_stats.cpurequest.stall.write.dependency, ++, kernel_req);
 			}
 		} else {
+            //if (msg->request->get_coreid() ==1 )
+            //    printf("dependent: FALSE\n");
 			cache_access_cb(queueEntry);
 		}
 
@@ -245,6 +257,8 @@ bool CacheController::handle_interconnect_cb(void *arg)
 	} else {
 		memdebug(get_name() <<
 				" Received message from lower interconnect\n");
+        //if (msg->request->get_coreid() ==1 )
+        //    printf("message from lower interconnect.\n");
 
 		if(msg->hasData) {
             /*
@@ -368,8 +382,12 @@ int CacheController::access_fast_path(Interconnect *interconnect,
         return -1;
     }
 
+    //if (request->get_coreid() == 1)
+    //    printf("cache controller before probe\n");
     if (request->get_type() != MEMORY_OP_WRITE)
         hit = cacheLines_->probe(request);
+    //if (request->get_coreid() == 1)
+    //    printf("cache controller after probe\n");
 
 	// TESTING
     //	hit = true;
@@ -538,10 +556,15 @@ bool CacheController::cache_access_cb(void *arg)
 
 	queueEntry->eventFlags[CACHE_ACCESS_EVENT]--;
 
+    //if (queueEntry->request->get_coreid() == 1)
+    //    printf("inside cache access cb.\n");
+
 	if(cacheLines_->get_port(queueEntry->request)) {
 		CacheLine *line = cacheLines_->probe(queueEntry->request);
 		bool hit = (line == NULL) ? false : line->state;
 
+        //if (queueEntry->request->get_coreid() == 1)
+        //    printf("hit = %d\n", hit);
 		// Testing 100 % L2 Hit
         //		if(type_ == L2_CACHE)
         //			hit = true;
@@ -621,8 +644,9 @@ bool CacheController::cache_access_cb(void *arg)
 							kernel_req);
 				}
 
-				if(!queueEntry->prefetch && type == MEMORY_OP_READ)
+				if(!queueEntry->prefetch && type == MEMORY_OP_READ) {
 					do_prefetch(queueEntry->request);
+                }
 			}
             /* else its update and its a cache miss, so ignore that */
 			else {
@@ -638,6 +662,10 @@ bool CacheController::cache_access_cb(void *arg)
                 }
 			}
 		}
+
+
+        //if (queueEntry->request->get_coreid() == 1)
+        //    printf("signal = %s; delay = %d\n", signal->get_name(), delay);
 		marss_add_event(signal, delay,
 				(void*)queueEntry);
 		return true;

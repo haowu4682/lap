@@ -71,6 +71,8 @@ bool P2PInterconnect::controller_request_cb(void *arg)
      * pass it to next controller
      */
 	Message *msg = (Message*)arg;
+    if (msg->request->get_coreid() == 1)
+        printf("P2P1\n");
 
 	Controller *receiver = get_other_controller(
 			(Controller*)msg->sender);
@@ -81,6 +83,9 @@ bool P2PInterconnect::controller_request_cb(void *arg)
 	message.hasData = msg->hasData;
 	message.arg = msg->arg;
 
+    if (msg->request->get_coreid() == 1)
+        printf("interconnect singal name: %s\n", receiver->get_interconnect_signal()
+                ->get_name());
 	bool ret_val;
 	ret_val = receiver->get_interconnect_signal()->emit((void *)&message);
 

@@ -136,8 +136,16 @@ bool BaseMachine::init(PTLsimConfig& config)
 
     machineBuilder.setup_machine(*this, config.machine_config.buf);
 
+    foreach(i, accelerators.count()) {
+        accelerators[i]->init();
+    }
+
     foreach(i, cores.count()) {
         cores[i]->update_memory_hierarchy_ptr();
+    }
+
+    foreach(i, accelerators.count()) {
+        accelerators[i]->update_memory_hierarchy_ptr();
     }
 
     init_qemu_io_events();

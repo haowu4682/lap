@@ -241,6 +241,11 @@ namespace Memory {
         allInterconnects_.push(conn);
     }
 
+    void add_request_pool() {
+        RequestPool *pool = new RequestPool();
+        requestPool_.push(pool);
+    }
+
     void setup_full_flags() {
         // Setup the full flags
         cpuFullFlags_.resize(cpuControllers_.count(), false);
