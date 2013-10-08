@@ -43,6 +43,8 @@ namespace Core {
         Memory::MemoryHierarchy* memoryHierarchy;
         Context* ctx;
         Signal run_cycle;
+        /* Core wakeup signal */
+        Signal *core_wakeup_signal;
 
         /* Cache Access */
         Signal dcache_signal;

@@ -137,6 +137,7 @@ namespace ATOM_CORE_MODEL {
         ISSUE_OK_BLOCK,     // Issue completed, dont' allow second issue
         ISSUE_FAIL,         // Issue failed
         ISSUE_CACHE_MISS,   // Issue had cache miss
+        ISSUE_GEMM_BLOCKED,   // Issue had been blocked due to a GEMM operation
         ISSUE_OK_SKIP,      // Issue complted but skip any other
                             // issue in this cycle
         NUM_ISSUE_RETULTS
@@ -527,6 +528,7 @@ namespace ATOM_CORE_MODEL {
         void dtlb_walk_completed();
 
         W8   execute_gemm(TransOp& uop, int idx);
+        W64  get_gemm_addr(TransOp& uop, int idx);
 
         // Forward
         void forward();
@@ -757,6 +759,7 @@ namespace ATOM_CORE_MODEL {
 
         bool dcache_wakeup(void *arg);
         bool icache_wakeup(void *arg);
+        bool gemm_wakeup(void *arg);
 
         StoreBufferEntry* get_storebuf_entry();
 
@@ -842,6 +845,7 @@ namespace ATOM_CORE_MODEL {
         AtomOp* exception_op;
         bool    running;
         bool    ready;
+        bool    gemm_ready;
 
         W8  queued_mem_lock_count;
         W64 queued_mem_lock_list[4];
@@ -871,6 +875,7 @@ namespace ATOM_CORE_MODEL {
          */
         Signal dcache_signal;
         Signal icache_signal;
+        Signal gemm_signal;
 
         /* Stats Collection */
         struct st_fetch : public Statable

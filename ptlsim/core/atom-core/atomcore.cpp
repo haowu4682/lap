@@ -728,7 +728,7 @@ W8 AtomOp::execute_uop(W8 idx)
     }
 
     /* If issue failed then return immediately */
-    if(issue_result == ISSUE_FAIL || issue_result == ISSUE_CACHE_MISS) {
+    if(issue_result == ISSUE_FAIL || issue_result == ISSUE_CACHE_MISS || issue_result == ISSUE_GEMM_BLOCKED) {
         return issue_result;
     }
 
@@ -857,6 +857,12 @@ W8 AtomOp::execute_ast(TransOp& uop)
     return ISSUE_OK;
 }
 
+W64 AtomOp::get_gemm_addr(TransOp& uop, int idx)
+{
+    // TODO Use physical address
+    W64 virtaddr = radata;
+    return virtaddr;
+}
 
 /**
  * @brief Execute one gemm uop
@@ -868,15 +874,26 @@ W8 AtomOp::execute_ast(TransOp& uop)
 W8 AtomOp::execute_gemm(TransOp& uop, int idx)
 {
     AcceleratorArg arg;
-    arg.addr = radata;
     arg.rip = rip;
     arg.uuid = uuid;
-    // Call the accelerator (LAP)
-    thread->core.machine.accelerators[0]->ctx = &thread->ctx;
-    thread->core.machine.accelerators[0]->exec(arg);
-    // TODO Poll
 
-    return ISSUE_OK;
+    arg.addr = get_gemm_addr(uop,idx);
+
+    if (thread->gemm_ready) {
+        // Call the accelerator (LAP)
+        thread->core.machine.accelerators[0]->ctx = &thread->ctx;
+        thread->core.machine.accelerators[0]->core_wakeup_signal = &thread->gemm_signal;
+        thread->core.machine.accelerators[0]->exec(arg);
+
+        // Poll
+        thread->gemm_ready = false;
+        return ISSUE_GEMM_BLOCKED;
+
+    } else {
+        // Polling finished
+        thread->gemm_ready = true;
+        return ISSUE_OK;
+    }
 }
 
 /**
@@ -1754,6 +1771,11 @@ AtomThread::AtomThread(AtomCore& core, W8 threadid, Context& ctx)
     icache_signal.connect(signal_mem_ptr(*this,
             &AtomThread::icache_wakeup));
 
+    sig_name.reset();
+    sig_name << "Core" << core.coreid << "-Th" << threadid << "-gemm-wakeup";
+    gemm_signal.connect(signal_mem_ptr(*this,
+            &AtomThread::gemm_wakeup));
+
     op_lists.reset();
     op_free_list("free", op_lists);
     op_fetch_list("fetch", op_lists);
@@ -1817,6 +1839,7 @@ void AtomThread::reset()
     pause_counter = 0;
     running = 0;
     ready = 1;
+    gemm_ready = 1;
 
     op_free_list.reset();
     op_fetch_list.reset();
@@ -1966,12 +1989,16 @@ bool AtomThread::fetch_from_icache()
                 true, fetchrip.rip, 0, Memory::MEMORY_OP_READ);
         request->set_coreSignal(&icache_signal);
 
+        printf("here\n");
         hit = core.memoryHierarchy->access_cache(request);
+        printf("there\n");
 
         st_icache.accesses++;
 
         hit |= config.perfect_cache;
+            printf("L1 I-Cache Hit!\n");
         if unlikely (!hit) {
+            printf("L1 I-Cache Miss!\n");
             waiting_for_icache_miss = 1;
             icache_miss_addr = req_icache_block;
             st_icache.misses++;
@@ -2099,7 +2126,9 @@ itlb_walk_finish:
     icache_miss_addr = floor(pteaddr, ICACHE_FETCH_GRANULARITY);
     waiting_for_icache_miss = 1;
 
+    printf("ITLB walk before access icache.\n");
     bool L1_hit = core.memoryHierarchy->access_cache(request);
+    printf("ITLB walk after access icache, hit=%d.\n", L1_hit);
 
     if(L1_hit) {
         itlb_walk_level--;
@@ -2290,6 +2319,9 @@ bool AtomThread::issue()
         } else if(issue_result == ISSUE_CACHE_MISS) {
             ready = false;
             break;
+        } else if(issue_result == ISSUE_GEMM_BLOCKED) {
+            ready = false;
+            break;
         } else {
             add_to_commitbuf(buf_entry.op);
             dispatchq.pophead();
@@ -2390,6 +2422,14 @@ bool AtomThread::access_dcache(Waddr addr, W64 rip, W8 type, W64 uuid)
     }
 
     return hit;
+}
+
+bool AtomThread::gemm_wakeup(void *arg)
+{
+    // Are there any other work to be done here?
+    ready = true;
+
+    return true;
 }
 
 /**

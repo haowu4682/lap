@@ -109,7 +109,7 @@ bool BusInterconnect::controller_request_cb(void *arg)
 {
 	Message *message = (Message*)arg;
 
-    if (message->request->get_coreid() == 1)
+    //if (message->request->get_coreid() == 1)
         printf("Here1\n");
 	BusControllerQueue* busControllerQueue = NULL;
 	foreach(i, controllers.count()) {
@@ -121,7 +121,7 @@ bool BusInterconnect::controller_request_cb(void *arg)
 
     assert(busControllerQueue);
 
-    if (message->request->get_coreid() == 1)
+    //if (message->request->get_coreid() == 1)
         printf("Here2\n");
 	if (busControllerQueue->queue.isFull()) {
 		memdebug("Bus queue is full\n");
@@ -137,7 +137,7 @@ bool BusInterconnect::controller_request_cb(void *arg)
 	message->request->incRefCounter();
 	busQueueEntry->hasData = message->hasData;
 
-    if (message->request->get_coreid() == 1)
+    //if (message->request->get_coreid() == 1)
         printf("Here3\n");
 
 	if(!is_busy()) {
@@ -148,7 +148,7 @@ bool BusInterconnect::controller_request_cb(void *arg)
 		memdebug("Bus is busy\n");
 	}
 
-    if (message->request->get_coreid() == 1)
+    //if (message->request->get_coreid() == 1)
         printf("Here4\n");
 	return true;
 }
@@ -182,6 +182,7 @@ BusQueueEntry* BusInterconnect::arbitrate_round_robin()
 
 bool BusInterconnect::broadcast_cb(void *arg)
 {
+    printf("broadcast_cb HERE\n");
 	BusQueueEntry *queueEntry;
 	if(arg != NULL)
 		queueEntry = (BusQueueEntry*)arg;
