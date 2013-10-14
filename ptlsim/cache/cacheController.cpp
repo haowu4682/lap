@@ -165,8 +165,8 @@ bool CacheController::handle_interconnect_cb(void *arg)
 
 	memdebug("Message received is: ", *msg);
 
-    if (msg->request->get_coreid() ==1 )
-        printf("inside interconnect callback.\n");
+    //if (msg->request->get_coreid() ==1 )
+        printf("inside interconnect callback of %s.\n", get_name());
 	if(sender == upperInterconnect_ || sender == upperInterconnect2_) {
 
 		if(msg->hasData && msg->request->get_type() !=
@@ -187,7 +187,7 @@ bool CacheController::handle_interconnect_cb(void *arg)
 				" Received message from upper interconnect\n");
 
         //if (msg->request->get_coreid() ==1 )
-        //    printf("upper interconnect.\n");
+            printf("upper interconnect.\n");
 
 		CacheQueueEntry *queueEntry = pendingRequests_.alloc();
 
@@ -258,7 +258,7 @@ bool CacheController::handle_interconnect_cb(void *arg)
 		memdebug(get_name() <<
 				" Received message from lower interconnect\n");
         //if (msg->request->get_coreid() ==1 )
-        //    printf("message from lower interconnect.\n");
+            printf("message from lower interconnect.\n");
 
 		if(msg->hasData) {
             /*
@@ -277,6 +277,7 @@ bool CacheController::handle_interconnect_cb(void *arg)
 				 * upper cache.
 				 * So we create two events in parallel.
                  */
+                printf("Received queue entry response.\n");
 
 				queueEntry->eventFlags[CACHE_WAIT_RESPONSE]--;
 
@@ -310,6 +311,7 @@ bool CacheController::handle_interconnect_cb(void *arg)
 				 * if request is cache update, then access the cache
 				 * and update its data
                  */
+                printf("No queue entry, not private.\n");
 				if(msg->request->get_type() == MEMORY_OP_UPDATE) {
 
 					if(is_full(true)) {
@@ -354,6 +356,7 @@ bool CacheController::handle_interconnect_cb(void *arg)
 				}
 			}
 		} else {
+            printf("Request from other caches.\n");
             /*
 			 * Its a request from other caches, ignore them unless
 			 * its a cache update request. In case of cache update
@@ -473,11 +476,11 @@ bool CacheController::cache_miss_cb(void *arg)
 {
 	CacheQueueEntry *queueEntry = (CacheQueueEntry*)arg;
 
-    if (queueEntry->request->get_coreid() == 1)
-    {
+    //if (queueEntry->request->get_coreid() == 1)
+    //{
         printf("inside cache miss cb.\n");
-        printf("cache: %s\n, interconnect: %p", get_name(), lowerInterconnect_);
-    }
+        printf("cache: %s, interconnect: %s\n", get_name(), lowerInterconnect_->get_name());
+    //}
 
 	if(queueEntry->annuled)
 		return true;

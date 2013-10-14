@@ -64,13 +64,13 @@ void Accelerator::init()
     // TODO Replace the magic number with a built-in config script.
     machine.add_option("L1_I_", 1, "last_private", true);
     machine.add_option("L1_I_", 1, "private", true);
-    ControllerBuilder::add_new_cont(machine, 1, "L1_I_", "wb_cache", 10/*L1_128K*/);
+    ControllerBuilder::add_new_cont(machine, 1, "L1_I_", "mesi_cache", 6/*L1_128K_MESI*/);
 
     // L1 data cache
     // TODO Replace the magic number with a built-in config script.
     machine.add_option("L1_D_", 1, "last_private", true);
     machine.add_option("L1_D_", 1, "private", true);
-    ControllerBuilder::add_new_cont(machine, 1, "L1_D_", "wb_cache", 10/*L1_128K*/);
+    ControllerBuilder::add_new_cont(machine, 1, "L1_D_", "mesi_cache", 6/*L1_128K_MESI*/);
 
     foreach(i, 1) {
         // L1 insn cache connection

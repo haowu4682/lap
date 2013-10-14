@@ -405,6 +405,7 @@ bool CacheController::handle_interconnect_cb(void *arg)
     Interconnect *sender = (Interconnect*)msg->sender;
 
     memdebug("Message received is: " << *msg);
+    printf("Inside coherence cache cb!\n");
 
     if(sender == upperInterconnect_ || sender == upperInterconnect2_) {
         return handle_upper_interconnect(*msg);

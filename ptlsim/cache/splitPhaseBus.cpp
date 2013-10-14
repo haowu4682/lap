@@ -140,6 +140,8 @@ bool BusInterconnect::controller_request_cb(void *arg)
     bool kernel = message->request->is_kernel();
 
     printf("split_bus HERE1.\n");
+    Controller *sender = (Controller*)message->sender;
+    printf("split_bus: sender = %s\n", sender->get_name());
     /*
      * check if the request is already in pendingRequests_ queue
      * then update the hasData array in that queue
@@ -167,7 +169,6 @@ bool BusInterconnect::controller_request_cb(void *arg)
                 pendingEntry->controllerWithData = sender;
             }
 
-            printf("split_bus: sender = %s", sender->get_name());
             if(sender->is_private()) {
                 printf("split_bus: private.\n");
                 pendingEntry->shared |= message->isShared;
@@ -241,10 +242,12 @@ bool BusInterconnect::controller_request_cb(void *arg)
     printf("split_bus HERE3.\n");
     if(!is_busy()) {
         /* address bus */
+        printf("Broadcasting...\n");
         marss_add_event(&broadcast_, 1, NULL);
         set_bus_busy(true);
     } else {
         N_STAT_UPDATE(new_stats->bus_not_ready, ++, kernel);
+        printf("Bus is busy!\n");
         memdebug("Bus is busy\n");
     }
 
@@ -295,6 +298,7 @@ bool BusInterconnect::can_broadcast(BusControllerQueue *queue)
 
 bool BusInterconnect::broadcast_cb(void *arg)
 {
+    //printf("Inside broadcast cb.\n");
     BusQueueEntry *queueEntry;
     if(arg != NULL)
         queueEntry = (BusQueueEntry*)arg;
@@ -345,6 +349,7 @@ bool BusInterconnect::broadcast_cb(void *arg)
 
 bool BusInterconnect::broadcast_completed_cb(void *arg)
 {
+    //printf("Inside broadcast complete cb.\n");
     assert(is_busy());
     BusQueueEntry *queueEntry = (BusQueueEntry*)arg;
 
@@ -386,7 +391,10 @@ bool BusInterconnect::broadcast_completed_cb(void *arg)
     Controller *controller = queueEntry->controllerQueue->controller;
 
     foreach(i, controllers.count()) {
+        printf("Trying to send message to %d\n", i);
+        cout << message << endl;
         if(controller != controllers[i]->controller) {
+            printf("Sending...\n");
             bool ret = controllers[i]->controller->
                 get_interconnect_signal()->emit(&message);
             assert(ret);
@@ -395,6 +403,7 @@ bool BusInterconnect::broadcast_completed_cb(void *arg)
              * its the originating controller, mark its
              * response received flag to true
              */
+            printf("is original controller.\n");
             if(pendingEntry)
                 pendingEntry->responseReceived[i] = true;
         }

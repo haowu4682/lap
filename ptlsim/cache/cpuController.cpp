@@ -164,7 +164,7 @@ int CPUController::access_fast_path(Interconnect *interconnect,
 		// From CPU
 		if unlikely (request->is_instruction()) {
 
-            if (request->get_coreid() == 1)
+            //if (request->get_coreid() == 1)
                 printf("accesssing insn cache\n");
 			bool bufferHit = is_icache_buffer_hit(request);
 			if(bufferHit)
@@ -173,14 +173,14 @@ int CPUController::access_fast_path(Interconnect *interconnect,
 			fastPathLat = int_L1_i_->access_fast_path(this, request);
             N_STAT_UPDATE(stats.icache_latency, [fastPathLat]++, kernel_req);
 		} else {
-            if (request->get_coreid() == 1)
+            //if (request->get_coreid() == 1)
                 printf("accesssing data cache: %p\n", int_L1_d_);
 			fastPathLat = int_L1_d_->access_fast_path(this, request);
             N_STAT_UPDATE(stats.dcache_latency, [fastPathLat]++, kernel_req);
 		}
 	}
 
-    if (request->get_coreid() == 1)
+    //if (request->get_coreid() == 1)
         printf("fastPathLat = %d\n", fastPathLat);
     if unlikely (fastPathLat == 0)
 		return 0;
@@ -192,7 +192,7 @@ int CPUController::access_fast_path(Interconnect *interconnect,
 
 	CPUControllerQueueEntry* queueEntry = pendingRequests_.alloc();
 
-    if (request->get_coreid() == 1)
+    //if (request->get_coreid() == 1)
         printf("queueEntry = %p\n", queueEntry);
 	if unlikely (queueEntry == NULL) {
 		marss_add_event(&queueAccess_, 1, request);
@@ -219,7 +219,7 @@ int CPUController::access_fast_path(Interconnect *interconnect,
          * dependent entry is handled.
          */
 		memdebug("Dependent entry is: ", *dependentEntry, endl);
-        if (request->get_coreid() == 1)
+        //if (request->get_coreid() == 1)
             printf("Dependent entry.\n");
 		dependentEntry->depends = queueEntry->idx;
         queueEntry->waitFor = dependentEntry->idx;
@@ -235,7 +235,7 @@ int CPUController::access_fast_path(Interconnect *interconnect,
             }
 		}
 	} else {
-        if (request->get_coreid() == 1)
+        //if (request->get_coreid() == 1)
             printf("No Dependent entry.\n");
 		if(fastPathLat > 0) {
 			queueEntry->cycles = fastPathLat;
@@ -364,14 +364,14 @@ bool CPUController::cache_access_cb(void *arg)
 	else
 		interconnect = int_L1_d_;
 
-    if (queueEntry->request->get_coreid() == 1)
+    //if (queueEntry->request->get_coreid() == 1)
         printf("cache access cb: interconnect = %p\n", interconnect);
 
 	Message& message = *memoryHierarchy_->get_message();
 	message.sender = this;
 	message.request = queueEntry->request;
 
-    if (queueEntry->request->get_coreid() == 1)
+    //if (queueEntry->request->get_coreid() == 1)
         printf("singal_name = %s\n", interconnect->
                 get_controller_request_signal()->get_name());
 	
@@ -381,11 +381,11 @@ bool CPUController::cache_access_cb(void *arg)
 	memoryHierarchy_->free_message(&message);
 
 	if(!success) {
-        if (queueEntry->request->get_coreid() == 1)
+        //if (queueEntry->request->get_coreid() == 1)
             printf("inside a: %d\n", success);
 		marss_add_event(&cacheAccess_, 1, queueEntry);
 	} else if (queueEntry->request->get_type() == MEMORY_OP_TSX) {
-        if (queueEntry->request->get_coreid() == 1)
+        //if (queueEntry->request->get_coreid() == 1)
             printf("inside b: %d\n", success);
         queueEntry->request->decRefCounter();
 		pendingRequests_.free(queueEntry);
