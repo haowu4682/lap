@@ -139,9 +139,8 @@ bool BusInterconnect::controller_request_cb(void *arg)
 
     bool kernel = message->request->is_kernel();
 
-    printf("split_bus HERE1.\n");
-    Controller *sender = (Controller*)message->sender;
-    printf("split_bus: sender = %s\n", sender->get_name());
+    //Controller *sender = (Controller*)message->sender;
+    //printf("split_bus: sender = %s\n", sender->get_name());
     /*
      * check if the request is already in pendingRequests_ queue
      * then update the hasData array in that queue
@@ -150,7 +149,7 @@ bool BusInterconnect::controller_request_cb(void *arg)
     foreach_list_mutable(pendingRequests_.list(), pendingEntry,
             entry, nextentry) {
         if(pendingEntry->request == message->request) {
-            printf("split_bus: message request is pending.\n");
+            //printf("split_bus: message request is pending.\n");
             memdebug("Bus Response received for: ", *pendingEntry);
             int idx = -1;
             Controller *sender = (Controller*)message->sender;
@@ -165,12 +164,12 @@ bool BusInterconnect::controller_request_cb(void *arg)
 
             /* If response has data mark this controller */
             if(message->hasData) {
-                printf("split_bus: has data.\n");
+                //printf("split_bus: has data.\n");
                 pendingEntry->controllerWithData = sender;
             }
 
             if(sender->is_private()) {
-                printf("split_bus: private.\n");
+                //printf("split_bus: private.\n");
                 pendingEntry->shared |= message->isShared;
 
                 /*
@@ -188,16 +187,16 @@ bool BusInterconnect::controller_request_cb(void *arg)
                 }
             }
 
-            printf("split_bus: data_busy:%d\n", dataBusBusy_);
+            //printf("split_bus: data_busy:%d\n", dataBusBusy_);
             if(!dataBusBusy_) {
                 bool all_set = true;
                 foreach(x, pendingEntry->responseReceived.count()) {
-                    printf("pending entry %d response received: %d\n", x, pendingEntry->responseReceived[x]);
+                    //printf("pending entry %d response received: %d\n", x, pendingEntry->responseReceived[x]);
                     all_set &= pendingEntry->responseReceived[x];
                 }
                 if(all_set || (snoopDisabled_ && pendingEntry->controllerWithData)) {
                     dataBusBusy_ = true;
-                    printf("Broadcasting...\n");
+                    //printf("Broadcasting...\n");
                     marss_add_event(&dataBroadcast_, 1,
                             pendingEntry);
                 }
@@ -208,8 +207,6 @@ bool BusInterconnect::controller_request_cb(void *arg)
             return true;
         }
     }
-
-    printf("split_bus HERE1.5\n");
 
     /* its a new request, add entry into controllerqueues */
     BusControllerQueue* busControllerQueue = NULL;
@@ -223,12 +220,11 @@ bool BusInterconnect::controller_request_cb(void *arg)
 
     if (busControllerQueue->queue.isFull()) {
         N_STAT_UPDATE(new_stats->bus_not_ready, ++, kernel);
-        printf("split_bus queue full.\n");
+        //printf("split_bus queue full.\n");
         memdebug("Bus queue is full\n");
         return false;
     }
 
-    printf("split_bus HERE2.\n");
     BusQueueEntry *busQueueEntry;
     busQueueEntry = busControllerQueue->queue.alloc();
     if(busControllerQueue->queue.isFull()) {
@@ -239,19 +235,17 @@ bool BusInterconnect::controller_request_cb(void *arg)
     busQueueEntry->hasData = message->hasData;
 
 
-    printf("split_bus HERE3.\n");
     if(!is_busy()) {
         /* address bus */
-        printf("Broadcasting...\n");
+        //printf("Broadcasting...\n");
         marss_add_event(&broadcast_, 1, NULL);
         set_bus_busy(true);
     } else {
         N_STAT_UPDATE(new_stats->bus_not_ready, ++, kernel);
-        printf("Bus is busy!\n");
+        //printf("Bus is busy!\n");
         memdebug("Bus is busy\n");
     }
 
-    printf("split_bus HERE4.\n");
     return true;
 }
 
@@ -391,10 +385,10 @@ bool BusInterconnect::broadcast_completed_cb(void *arg)
     Controller *controller = queueEntry->controllerQueue->controller;
 
     foreach(i, controllers.count()) {
-        printf("Trying to send message to %d\n", i);
-        cout << message << endl;
+        //printf("Trying to send message to %d\n", i);
+        //cout << message << endl;
         if(controller != controllers[i]->controller) {
-            printf("Sending...\n");
+            //printf("Sending...\n");
             bool ret = controllers[i]->controller->
                 get_interconnect_signal()->emit(&message);
             assert(ret);
@@ -403,7 +397,7 @@ bool BusInterconnect::broadcast_completed_cb(void *arg)
              * its the originating controller, mark its
              * response received flag to true
              */
-            printf("is original controller.\n");
+            //printf("is original controller.\n");
             if(pendingEntry)
                 pendingEntry->responseReceived[i] = true;
         }
@@ -477,7 +471,7 @@ void BusInterconnect::set_data_bus()
 
 bool BusInterconnect::data_broadcast_cb(void *arg)
 {
-    printf("broadcast_cb HERE\n");
+    //printf("broadcast_cb HERE\n");
     PendingQueueEntry *pendingEntry = (PendingQueueEntry*)arg;
     assert(pendingEntry);
 
@@ -506,7 +500,7 @@ bool BusInterconnect::data_broadcast_cb(void *arg)
 
 bool BusInterconnect::data_broadcast_completed_cb(void *arg)
 {
-    printf("broadcast_complete_cb HERE\n");
+    //printf("broadcast_complete_cb HERE\n");
     PendingQueueEntry *pendingEntry = (PendingQueueEntry*)arg;
     assert(pendingEntry);
 

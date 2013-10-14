@@ -11,7 +11,8 @@ using namespace Memory;
 
 // Temporary variable to be used in testing memory Hierarchy.
 bool temp_need_load = false;
-W64 temp_addr;
+W64 temp_virt_addr;
+W64 temp_phys_addr;
 W64 temp_uuid, temp_rip;
 
 Accelerator::Accelerator(BaseMachine& machine, const char* name)
@@ -155,41 +156,47 @@ void Accelerator::init()
 bool Accelerator::runcycle(void *nothing)
 {
     W64 data;
+    int rc;
 
     if (cache_ready && temp_need_load) {
-        load(temp_addr, data, temp_rip, temp_uuid);
-        printf("Loading data succeeded! data=%llu\n", data);
+        rc = load(temp_virt_addr, temp_phys_addr, data, temp_rip, temp_uuid, true);
+        if (rc == ACCESS_OK) {
+            printf("Loading data succeeded! data=%llu\n", data);
+            temp_need_load = false;
+        }
     }
     return true;
 }
 
-int Accelerator::load(W64 addr, W64& data, W64 rip, W64 uuid)
+int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid, bool is_requested)
 {
     bool hit;
 
-    printf("memory = %p\n", memoryHierarchy);
     Memory::MemoryRequest *request = memoryHierarchy->get_free_request(id);
     //printf("id = %d\n", id);
     assert(request != NULL);
 
-    request->init(id, 0, addr, 0, sim_cycle,
+    request->init(id, 0, phys_addr, 0, sim_cycle,
             false, rip /* What should be the RIP here? */,
             uuid /* What should be the UUID here? */,
             Memory::MEMORY_OP_READ);
     request->set_coreSignal(&dcache_signal);
 
-    hit = memoryHierarchy->access_cache(request);
+    if (!is_requested) {
+        hit = memoryHierarchy->access_cache(request);
 
-    if (!hit) {
-        // Handle Cache Miss
-        printf("Cache Miss!\n");
-        cache_ready = false;
-        return ACCESS_CACHE_MISS;
+        if (!hit) {
+            // Handle Cache Miss
+            printf("Accelerator Cache Miss!\n");
+            cache_ready = false;
+            return ACCESS_CACHE_MISS;
+        }
     }
 
+    printf("Accelerator Cache Hit!\n");
     // On cache hit, retrieve data from the memory location.
     // TODO: use PHYSICAL address here.
-    data = ctx->loadvirt(addr, 3); // sizeshift=3 for 64bit-data
+    data = ctx->loadvirt(virt_addr, 3); // sizeshift=3 for 64bit-data
 
     return ACCESS_OK;
 }
@@ -199,7 +206,7 @@ bool Accelerator::load_cb(void *arg)
 {
     //Memory::MemoryRequest* req = (Memory::MemoryRequest*)arg;
     // TODO: Set the flag correlate to the requested memory
-    printf("cache load callback\n");
+    printf("Inside Accelerator dcache callback.\n");
     cache_ready = true;
 
 
@@ -232,12 +239,17 @@ W64 Accelerator::exec(AcceleratorArg& arg)
 
     // The following are commands to be executed.
     printf("Caught an accelerator exec!\n");
-    printf("arg = %llu\n", arg.addr);
+    printf("arg = %llu\n", arg.virt_addr);
     W64 data;
-    temp_addr = arg.addr;
+    temp_virt_addr = arg.virt_addr;
+    temp_phys_addr = arg.phys_addr;
     temp_rip = arg.rip;
     temp_uuid = arg.uuid;
-    int rc = load(arg.addr, data, arg.rip, arg.uuid);
+
+    printf("virt_addr = %llu\n", arg.virt_addr);
+    printf("phys_addr = %llu\n", arg.phys_addr);
+
+    int rc = load(arg.virt_addr, arg.phys_addr, data, arg.rip, arg.uuid, false);
     printf("Load finished!\n");
     if (rc == ACCESS_OK) {
         printf("Loaded data = %llu\n", data);
@@ -246,10 +258,10 @@ W64 Accelerator::exec(AcceleratorArg& arg)
         temp_need_load = true;
         printf("Memory load encounters a cache miss!\n");
 
-        return arg.addr;
+        return arg.virt_addr;
     } else {
         printf("Memory load failed!\n");
-        return arg.addr;
+        return arg.virt_addr;
     }
 }
 

@@ -877,7 +877,8 @@ W8 AtomOp::execute_gemm(TransOp& uop, int idx)
     arg.rip = rip;
     arg.uuid = uuid;
 
-    arg.addr = get_gemm_addr(uop,idx);
+    arg.virt_addr = get_gemm_addr(uop,idx);
+    arg.phys_addr = get_phys_address(uop, false, arg.virt_addr);
 
     if (thread->gemm_ready) {
         // Call the accelerator (LAP)
@@ -1226,6 +1227,9 @@ W64 AtomOp::generate_address(TransOp& uop, bool is_st)
     W64 virtaddr2 = virtaddr + (op_size - 1);
 
     W64 physaddr = get_phys_address(uop, is_st, virtaddr);
+    //if (virtaddr == 140736979711512) {
+    //    printf("virtaddr = %llu, phys_addr=%llu\n", virtaddr, physaddr);
+    //}
 
     /* Access TLB */
     tlb_hit = thread->core.dtlb.probe(virtaddr, thread->threadid);
@@ -1989,16 +1993,14 @@ bool AtomThread::fetch_from_icache()
                 true, fetchrip.rip, 0, Memory::MEMORY_OP_READ);
         request->set_coreSignal(&icache_signal);
 
-        printf("here\n");
         hit = core.memoryHierarchy->access_cache(request);
-        printf("there\n");
 
         st_icache.accesses++;
 
         hit |= config.perfect_cache;
-            printf("L1 I-Cache Hit!\n");
+        //    printf("L1 I-Cache Hit!\n");
         if unlikely (!hit) {
-            printf("L1 I-Cache Miss!\n");
+        //    printf("L1 I-Cache Miss!\n");
             waiting_for_icache_miss = 1;
             icache_miss_addr = req_icache_block;
             st_icache.misses++;
@@ -2126,9 +2128,9 @@ itlb_walk_finish:
     icache_miss_addr = floor(pteaddr, ICACHE_FETCH_GRANULARITY);
     waiting_for_icache_miss = 1;
 
-    printf("ITLB walk before access icache.\n");
+    //printf("ITLB walk before access icache.\n");
     bool L1_hit = core.memoryHierarchy->access_cache(request);
-    printf("ITLB walk after access icache, hit=%d.\n", L1_hit);
+    //printf("ITLB walk after access icache, hit=%d.\n", L1_hit);
 
     if(L1_hit) {
         itlb_walk_level--;
