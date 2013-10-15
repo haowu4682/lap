@@ -1,4 +1,5 @@
 #include <globals.h>
+#include <atomcore.h>
 #include <machine.h>
 #include <accelerator.h>
 #include <interconnect.h>
@@ -9,8 +10,16 @@
 using namespace Core;
 using namespace Memory;
 
+enum AccelState {
+    Accel_Idle,
+    Accel_Load,
+    Accel_Store,
+
+    MAX_Accel_State
+};
+
 // Temporary variable to be used in testing memory Hierarchy.
-bool temp_need_load = false;
+AccelState temp_state = Accel_Idle;
 W64 temp_virt_addr;
 W64 temp_phys_addr;
 W64 temp_uuid, temp_rip;
@@ -153,19 +162,74 @@ void Accelerator::init()
 }
 
 // Currently it only tests loading in the memory Hierarchy.
+// Return true if exit to QEMU is requested.
 bool Accelerator::runcycle(void *nothing)
 {
     W64 data;
     int rc;
 
-    if (cache_ready && temp_need_load) {
-        rc = load(temp_virt_addr, temp_phys_addr, data, temp_rip, temp_uuid, true);
-        if (rc == ACCESS_OK) {
-            printf("Loading data succeeded! data=%llu\n", data);
-            temp_need_load = false;
-        }
+    switch (temp_state) {
+        case Accel_Load:
+            if (cache_ready) {
+                rc = load(temp_virt_addr, temp_phys_addr, data, temp_rip, temp_uuid, true);
+                if (rc == ACCESS_OK) {
+                    printf("Loading data succeeded! data=%llu\n", data);
+                    temp_state = Accel_Store;
+                }
+            }
+
+        case Accel_Store:
+            if (cache_ready) {
+                // XXX Magic number to be stored to the location.
+                W64 magic_data = 34;
+                rc = store(temp_virt_addr, temp_phys_addr, magic_data, temp_rip, temp_uuid, true);
+                if (rc == ACCESS_OK) {
+                    printf("Storing data succeeded! data=%llu\n", magic_data);
+                    temp_state = Accel_Idle;
+                }
+            }
+
+        default:
+            // do nothing
+            break;
     }
-    return true;
+
+    return false;
+}
+
+int Accelerator::store(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid, bool is_requested)
+{
+    ATOM_CORE_MODEL::StoreBufferEntry buf;
+
+    buf.data = data;
+    buf.addr = phys_addr;
+    buf.virtaddr = virt_addr;
+    // (1<<UOP_SIZE) is the number of bytes in the data
+#define UOP_SIZE 3
+    buf.bytemask = ((1 << (1 << UOP_SIZE))-1);
+    buf.size = UOP_SIZE;
+    // Be careful not to use buf.op below.
+    buf.op = NULL;
+    buf.mmio = ctx->is_mmio_addr(virt_addr, true);
+
+    Memory::MemoryRequest *request = memoryHierarchy->get_free_request(id);
+    //printf("id = %d\n", id);
+    assert(request != NULL);
+
+    request->init(id, 0, phys_addr, 0, sim_cycle,
+            false, rip /* What should be the RIP here? */,
+            uuid /* What should be the UUID here? */,
+            Memory::MEMORY_OP_WRITE);
+    request->set_coreSignal(&dcache_signal);
+
+    memoryHierarchy->access_cache(request);
+
+    printf("Writing to RAM: virtaddr = %llu, data = %llu, bytemask = %d, size = %d\n",
+            buf.virtaddr, buf.data, buf.bytemask, buf.size);
+
+    buf.write_to_ram(*ctx);
+
+    return ACCESS_OK;
 }
 
 int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid, bool is_requested)
@@ -255,7 +319,7 @@ W64 Accelerator::exec(AcceleratorArg& arg)
         printf("Loaded data = %llu\n", data);
         return data;
     } else if (rc == ACCESS_CACHE_MISS) {
-        temp_need_load = true;
+        temp_state = Accel_Load;
         printf("Memory load encounters a cache miss!\n");
 
         return arg.virt_addr;

@@ -34,6 +34,7 @@ namespace Core {
         virtual void update_memory_hierarchy_ptr();
         virtual W64 exec(AcceleratorArg &arg);
         virtual int load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid, bool is_requested);
+        virtual int store(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid, bool is_requested);
         virtual int load_blocked(W64 addr, W64& data);
         virtual bool load_cb(void *arg);
 
