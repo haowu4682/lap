@@ -174,8 +174,8 @@ int CPUController::access_fast_path(Interconnect *interconnect,
 		}
 	}
 
-    if (request->get_coreid() == 1)
-        printf("fastPathLat = %d\n", fastPathLat);
+    //if (request->get_coreid() == 1)
+    //    printf("fastPathLat = %d\n", fastPathLat);
     if unlikely (fastPathLat == 0)
 		return 0;
 
@@ -211,8 +211,8 @@ int CPUController::access_fast_path(Interconnect *interconnect,
          * dependent entry is handled.
          */
 		memdebug("Dependent entry is: ", *dependentEntry, endl);
-        if (request->get_coreid() == 1)
-            printf("Dependent entry.\n");
+        //if (request->get_coreid() == 1)
+        //    printf("Dependent entry.\n");
 		dependentEntry->depends = queueEntry->idx;
         queueEntry->waitFor = dependentEntry->idx;
 		queueEntry->cycles = -1;
@@ -227,8 +227,8 @@ int CPUController::access_fast_path(Interconnect *interconnect,
             }
 		}
 	} else {
-        if (request->get_coreid() == 1)
-            printf("No Dependent entry.\n");
+        //if (request->get_coreid() == 1)
+        //    printf("No Dependent entry.\n");
 		if(fastPathLat > 0) {
 			queueEntry->cycles = fastPathLat;
 		} else {

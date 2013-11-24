@@ -1777,6 +1777,7 @@ AtomThread::AtomThread(AtomCore& core, W8 threadid, Context& ctx)
 
     sig_name.reset();
     sig_name << "Core" << core.coreid << "-Th" << threadid << "-gemm-wakeup";
+    gemm_signal.set_name(sig_name);
     gemm_signal.connect(signal_mem_ptr(*this,
             &AtomThread::gemm_wakeup));
 
@@ -2429,6 +2430,7 @@ bool AtomThread::access_dcache(Waddr addr, W64 rip, W8 type, W64 uuid)
 bool AtomThread::gemm_wakeup(void *arg)
 {
     // Are there any other work to be done here?
+    printf("Gemm Execution finished. Waking up...\n");
     ready = true;
 
     return true;
@@ -3458,7 +3460,6 @@ AtomCoreBuilder::AtomCoreBuilder(const char* name)
     : CoreBuilder(name)
 {
 }
-
 BaseCore* AtomCoreBuilder::get_new_core(BaseMachine& machine, const char* name)
 {
     AtomCore* core = new AtomCore(machine, 1, name);

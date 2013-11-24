@@ -37,7 +37,7 @@ BaseMachine::BaseMachine(const char *name)
     update_name(stats_name.buf);
 
     // TODO Move this hard-coded stuff to use config files
-    accelerators.push(new Core::Accelerator((*this), "LAP"));
+    //accelerators.push(new Core::Accelerator((*this), "LAP"));
 
     context_used = 0;
     coreid_counter = 0;
