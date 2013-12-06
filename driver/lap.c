@@ -81,6 +81,7 @@ ssize_t lap_write(struct file *filp, const char __user *buf, size_t count,
 ssize_t lap_read(struct file *filp, char __user *buf, size_t count, 
         loff_t *f_pos)
 {
+    int i;
     long failed_bytes_count;
 
     // Execute the LAP code
@@ -92,13 +93,22 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
          : "m"(lap_buf));
 
 
+    // TODO Use a more elegant way to allow user to define reading pattern
+    // Read from beginning
+    lap_buf_index = 0;
+
     // Return the result
     if (lap_buf_index + count >= LAP_BUF_SIZE) {
         count = LAP_BUF_SIZE - lap_buf_index;
     }
 
-    failed_bytes_count = copy_from_user(lap_buf + lap_buf_index, buf, count);
-    count - failed_bytes_count;
+    for (i = 0; i < count; i = i + 4) {
+        printk("%d ", *((int *)(lap_buf + i)));
+    }
+    printk("\n");
+
+    failed_bytes_count = copy_to_user(lap_buf + lap_buf_index, buf, count);
+    //count - failed_bytes_count;
 
     return count - failed_bytes_count;
 }

@@ -243,13 +243,20 @@ bool Accelerator::do_calculate(void *nothing)
         }
     }
 
+    print_matrix(matrix_data.C);
+
     return true;
 }
 
 bool Accelerator::do_store(void *nothing)
 {
-    // XXX Magic number to be stored to the location.
     int rc;
+
+    // DEBUG Print out data
+    for (int i = 0; i < matrix_data_buf_size/3; ++i) {
+        printf("%d ", matrix_data_buf + i * sizeof(int));
+    }
+    printf("\n");
 
     rc = store(temp_virt_addr+2*sizeof(int), temp_phys_addr+2*sizeof(int),
             matrix_data_buf, matrix_data_buf_size, temp_rip, temp_uuid, true);
@@ -257,11 +264,11 @@ bool Accelerator::do_store(void *nothing)
         return false;
     }
 
-    // XXX Memory leak
+    // XXX Memory leak, left for test right now
     //free(matrix_data_buf);
 
-    // XXX Testing with a delay here.
-    int delay = 1;
+    // XXX Testing with a delay here, see if the delay causes the bug.
+    int delay = 100000;
     marss_add_event(core_wakeup_signal, delay, NULL);
     return true;
 }
@@ -388,7 +395,7 @@ int Accelerator::store(W64 virt_addr, W64 phys_addr, void *data, size_t size, W6
     int ret = ACCESS_OK;
     W64 cur_virt_addr, cur_phys_addr;
 
-    for (int i = 0; i < size; i += 3) {
+    for (int i = 0; i < size; i += (1<<sizeshift)) {
         if (size - i >= 8) {
             sizeshift = 3;
         } else if (size-i >= 4){
@@ -452,7 +459,7 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, void *data, size_t size, W64
     int ret = ACCESS_OK;
     W64 cur_virt_addr, cur_phys_addr;
 
-    for (int i = 0; i < size; i += 8) {
+    for (int i = 0; i < size; i += (1<<sizeshift)) {
         if (size - i >= 8) {
             sizeshift = 3;
         } else if (size-i >= 4){
