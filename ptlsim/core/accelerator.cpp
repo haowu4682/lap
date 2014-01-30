@@ -268,7 +268,7 @@ bool Accelerator::do_store(void *nothing)
     //free(matrix_data_buf);
 
     // XXX Testing with a delay here, see if the delay causes the bug.
-    int delay = 100000;
+    int delay = 100;
     marss_add_event(core_wakeup_signal, delay, NULL);
     return true;
 }
@@ -347,7 +347,9 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid
     // On cache hit, retrieve data from the memory location.
     // TODO: use PHYSICAL address here.
     printf("virtaddr=%llu, sizeshift=%d\n", virt_addr, sizeshift);
+    printf("kernel_mode=%d, mmio=%d", ctx->kernel_mode, ctx->is_mmio_addr(virt_addr, 0));
     data = ctx->loadvirt(virt_addr, sizeshift); // sizeshift=3 for 64bit-data
+    //data = ctx->loadphys(phys_addr, false, sizeshift); // sizeshift=3 for 64bit-data
 
     return ACCESS_OK;
 }
@@ -472,7 +474,6 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, void *data, size_t size, W64
             assert(0);
         }
 
-        // Page table?
         cur_virt_addr = virt_addr + i;
         cur_phys_addr = phys_addr + i;
 

@@ -877,8 +877,15 @@ W8 AtomOp::execute_gemm(TransOp& uop, int idx)
     arg.rip = rip;
     arg.uuid = uuid;
 
+    //W64 some_addr = generate_address(uop, idx);
     arg.virt_addr = get_gemm_addr(uop,idx);
     arg.phys_addr = get_phys_address(uop, false, arg.virt_addr);
+    W64 some_addr = generate_address(uop, idx);
+    //arg.phys_addr = generate_address(uop, idx);
+    //arg.virt_addr = cache_virtaddr;
+
+    printf("Inside execute gemm: generate_address = %llu, virt addr = %llu, phys addr = %llu\n",
+            some_addr, arg.virt_addr, arg.phys_addr);
 
     if (thread->gemm_ready) {
         // Call the accelerator (LAP)
@@ -887,11 +894,13 @@ W8 AtomOp::execute_gemm(TransOp& uop, int idx)
         thread->core.machine.accelerators[0]->exec(arg);
 
         // Poll
+        printf("Start to execute gemm ... \n");
         thread->gemm_ready = false;
         return ISSUE_GEMM_BLOCKED;
 
     } else {
         // Polling finished
+        printf("Finish to execute gemm ... \n");
         thread->gemm_ready = true;
         return ISSUE_OK;
     }

@@ -492,7 +492,7 @@ def write_interconn_logic(config, m_conf, of):
                     if 'core' not in cont:
                         c_cfg = get_cache_cfg(m_conf, cont.rstrip('$'))
                         assert c_cfg, "Can't find cache for %s" % cont
-                        assert c_cfg["insts"] == "$NUMCORES"
+                        assert c_cfg["insts"] == "$NUMCORES", "Cont = %s" % cont
 
             all_conts = False
             for cont in conn.keys():

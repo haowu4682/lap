@@ -429,8 +429,8 @@ int CacheController::access_fast_path(Interconnect *interconnect,
     if (request->get_type() != MEMORY_OP_WRITE)
         line = cacheLines_->probe(request);
 
-    if (request->get_coreid() == 1)
-        printf("access fast path: line = %p\n", line);
+    //if (request->get_coreid() == 1)
+    //    printf("access fast path: line = %p\n", line);
 
     /*
      * if its a write, dont do fast access as the lower
@@ -654,8 +654,8 @@ bool CacheController::cache_access_cb(void *arg)
         if(line) hit = true;
         else hit = false;
 
-        if (queueEntry->request->get_coreid() == 1)
-            printf("Inside coherent cache %s hit = %d\n", get_name(), hit);
+        //if (queueEntry->request->get_coreid() == 1)
+        //    printf("Inside coherent cache %s hit = %d\n", get_name(), hit);
 
         // Testing 100 % L2 Hit
         // if(type_ == L2_CACHE)
