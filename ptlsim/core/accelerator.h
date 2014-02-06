@@ -31,6 +31,8 @@ namespace Core {
         // TODO Pure Abstract function
         virtual void init();
         virtual bool runcycle(void*);
+
+        virtual bool do_idle(void*);
         virtual bool do_load_header(void*);
         virtual bool do_load_content(void*);
         virtual bool do_store(void*);
@@ -62,6 +64,10 @@ namespace Core {
 
         /* Cache Miss Ready */
         bool cache_ready;
+
+
+        /* MMIO control register value */
+        W64 rc0;
     };
 }
 

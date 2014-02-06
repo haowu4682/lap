@@ -10,6 +10,8 @@
 using namespace Core;
 using namespace Memory;
 
+#define LAP_MMIO_ADDR 0xe7000000
+
 enum AccelState {
     Accel_Idle,
     Accel_Load_header,
@@ -180,6 +182,20 @@ void Accelerator::init()
 #endif
 }
 
+// Check the MMIO register for request
+bool Accelerator::do_idle(void *nothing)
+{
+    W64 reg = ctx->loadphys(LAP_MMIO_ADDR, false, 3); // sizeshift=3 for 64bit-data
+    printf("LAP MMIO register value = %ld", reg);
+
+    if (reg == 1) {
+        return true;
+    }
+
+    return false;
+}
+
+
 // Load the matrix header
 bool Accelerator::do_load_header(void *nothing)
 {
@@ -312,8 +328,14 @@ bool Accelerator::runcycle(void *nothing)
             break;
 
         default:
+        case Accel_Idle:
             // do nothing
+            if (do_idle(nothing)) {
+                printf("LAP Request Received! switching to load_header.");
+                temp_state = Accel_Load_header;
+            }
             break;
+
     }
 
     return false;

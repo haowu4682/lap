@@ -13,6 +13,9 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define LAP_BUF_SIZE (1<<24)
 
+#define LAP_MMIO_ADDR 0xe7000000
+#define LAP_MMIO_ADDR_SIZE 4
+
 int major_num = 0;
 int minor_num = 0;
 int num_dev = 1;
@@ -86,7 +89,7 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
 
     // Execute the LAP code
     asm("push %%rdi;\
-         mov %%rdi, %1; \
+         mov %1, %%rdi; \
          xlat; \
          pop %%rdi;"
          : "=m"(lap_buf)
@@ -158,10 +161,20 @@ static void setup_dev(struct lap_dev *dev)
 static int lap_init(void)
 {
     int result;
+    struct resource *res;
 
     //printk(KERN_ALERT "Hello, world\n");
     // Initialiate LAP buffer
     lap_buf = kmalloc(LAP_BUF_SIZE, GFP_KERNEL);
+
+    // Initialiate LAP MMIO memory
+    res = request_mem_region(LAP_MMIO_ADDR, LAP_MMIO_ADDR_SIZE, "LAP mmio address");
+    if (res == NULL) {
+        printk(KERN_ALERT "lap: cannot request the MMIO used by LAP, aborted.");
+        return -1;
+    }
+
+    ioremap(LAP_MMIO_ADDR, LAP_MMIO_ADDR_SIZE);
 
     // Initiazlie driver number
     if (major_num) {
