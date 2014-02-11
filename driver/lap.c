@@ -87,6 +87,7 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
     int i;
     long failed_bytes_count;
 
+#if 0
     // Execute the LAP code
     asm("push %%rdi;\
          mov %1, %%rdi; \
@@ -94,7 +95,13 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
          pop %%rdi;"
          : "=m"(lap_buf)
          : "m"(lap_buf));
+#endif
 
+    *((uint64_t *)LAP_MMIO_ADDR) = 1;
+
+    // Polling for LAP_MMIO_ADDR
+    while (*((uint64_t *)LAP_MMIO_ADDR) != 0)
+        ;
 
     // TODO Use a more elegant way to allow user to define reading pattern
     // Read from beginning

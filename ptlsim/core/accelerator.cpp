@@ -284,8 +284,10 @@ bool Accelerator::do_store(void *nothing)
     //free(matrix_data_buf);
 
     // XXX Testing with a delay here, see if the delay causes the bug.
-    int delay = 100;
-    marss_add_event(core_wakeup_signal, delay, NULL);
+    int bytemask = ((1 << (1 << 3))-1);
+    W64 reg = ctx->storemask(LAP_MMIO_ADDR, 0, bytemask); // sizeshift=3 for 64bit-data
+    //int delay = 100;
+    //marss_add_event(core_wakeup_signal, delay, NULL);
     return true;
 }
 
