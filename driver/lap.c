@@ -11,9 +11,9 @@
 
 MODULE_LICENSE("Dual BSD/GPL");
 
-#define LAP_BUF_SIZE (1<<24)
+#define LAP_BUF_SIZE (1<<22)
 
-#define LAP_MMIO_ADDR 0xe7000000
+#define LAP_MMIO_ADDR 0x120000000
 #define LAP_MMIO_ADDR_SIZE 4
 
 int major_num = 0;
