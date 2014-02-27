@@ -9,12 +9,14 @@
 
 #include "common.h"
 
-MODULE_LICENSE("Dual BSD/GPL");
+//MODULE_LICENSE("Dual BSD/GPL");
 
 #define LAP_BUF_SIZE (1<<22)
 
 #define LAP_MMIO_ADDR 0x120000000
-#define LAP_MMIO_ADDR_SIZE 4
+#define LAP_MMIO_ADDR_SIZE 8
+
+void *lap_mmio_buf = NULL;
 
 int major_num = 0;
 int minor_num = 0;
@@ -87,6 +89,9 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
     int i;
     long failed_bytes_count;
 
+    phys_addr_t lap_phys_addr = virt_to_phys(lap_buf);
+    uint64_t lap_virt_addr = (uint64_t) lap_buf;
+
 #if 0
     // Execute the LAP code
     asm("push %%rdi;\
@@ -97,10 +102,15 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
          : "m"(lap_buf));
 #endif
 
-    *((uint64_t *)LAP_MMIO_ADDR) = 1;
+    //*((uint64_t *)LAP_MMIO_ADDR) = 1;
+
+    iowrite32(lap_virt_addr & 0xffffffff, lap_mmio_buf+4);
+    iowrite32(lap_virt_addr >> 32, lap_mmio_buf+8);
+    iowrite32(0xffffffff, lap_mmio_buf);
 
     // Polling for LAP_MMIO_ADDR
-    while (*((uint64_t *)LAP_MMIO_ADDR) != 0)
+    //while (*((uint64_t *)LAP_MMIO_ADDR) != 0)
+    while (ioread32(lap_mmio_buf) != 0)
         ;
 
     // TODO Use a more elegant way to allow user to define reading pattern
@@ -117,7 +127,7 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
     }
     printk("\n");
 
-    failed_bytes_count = copy_to_user(lap_buf + lap_buf_index, buf, count);
+    failed_bytes_count = copy_to_user(buf, lap_buf + lap_buf_index, count);
     //count - failed_bytes_count;
 
     return count - failed_bytes_count;
@@ -169,6 +179,7 @@ static int lap_init(void)
 {
     int result;
     struct resource *res;
+    unsigned int lap_mmio_data;
 
     //printk(KERN_ALERT "Hello, world\n");
     // Initialiate LAP buffer
@@ -177,11 +188,15 @@ static int lap_init(void)
     // Initialiate LAP MMIO memory
     res = request_mem_region(LAP_MMIO_ADDR, LAP_MMIO_ADDR_SIZE, "LAP mmio address");
     if (res == NULL) {
-        printk(KERN_ALERT "lap: cannot request the MMIO used by LAP, aborted.");
+        printk(KERN_ALERT "lap: cannot request the MMIO used by LAP, aborted.\n");
         return -1;
     }
 
-    ioremap(LAP_MMIO_ADDR, LAP_MMIO_ADDR_SIZE);
+    lap_mmio_buf = ioremap_nocache(LAP_MMIO_ADDR, LAP_MMIO_ADDR_SIZE);
+    iowrite32(0, lap_mmio_buf);
+    lap_mmio_data = ioread32(lap_mmio_buf);
+    printk("lap: lap_mmio_buf = %p, lap_mmio_data = %u\n", lap_mmio_buf, lap_mmio_data);
+    printk("lap: lap_buf = %p\n", lap_buf);
 
     // Initiazlie driver number
     if (major_num) {
@@ -207,6 +222,7 @@ static int lap_init(void)
 static void lap_exit(void)
 {
     unregister_chrdev_region(dev, minor_num);
+    release_mem_region(LAP_MMIO_ADDR, LAP_MMIO_ADDR_SIZE);
 
     //printk(KERN_ALERT "Goodbye, cruel world\n");
     kfree(lap_buf);

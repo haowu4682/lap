@@ -1236,9 +1236,6 @@ W64 AtomOp::generate_address(TransOp& uop, bool is_st)
     W64 virtaddr2 = virtaddr + (op_size - 1);
 
     W64 physaddr = get_phys_address(uop, is_st, virtaddr);
-    //if (virtaddr == 140736979711512) {
-    //    printf("virtaddr = %llu, phys_addr=%llu\n", virtaddr, physaddr);
-    //}
 
     /* Access TLB */
     tlb_hit = thread->core.dtlb.probe(virtaddr, thread->threadid);

@@ -10,7 +10,9 @@
 using namespace Core;
 using namespace Memory;
 
-#define LAP_MMIO_ADDR 0xe7000000
+uint64_t lap_mmio_reg;
+uint64_t lap_buf_addr;
+#define LAP_MMIO_ADDR 0x120000000
 
 enum AccelState {
     Accel_Idle,
@@ -77,6 +79,8 @@ void Accelerator::init()
     // TODO: Specify id, instead of a magic number here.
     id = 1;
     cache_ready = false;
+
+    ctx = &machine.contextof(0);
 
     printf("Initiating Accelerator!\n");
 
@@ -185,13 +189,24 @@ void Accelerator::init()
 // Check the MMIO register for request
 bool Accelerator::do_idle(void *nothing)
 {
-    W64 reg = ctx->loadphys(LAP_MMIO_ADDR, false, 3); // sizeshift=3 for 64bit-data
-    printf("LAP MMIO register value = %ld", reg);
+    //W64 reg = 0;
+    //reg = ctx->loadphys(LAP_MMIO_ADDR, false, 3); // sizeshift=3 for 64bit-data
+    //printf("LAP MMIO register value = %ld", reg);
 
-    if (reg == 1) {
+    //if (reg == 1) {
+    if (lap_mmio_reg != 0) {
+        cache_ready = true;
+        temp_virt_addr = lap_buf_addr;
+        // TODO Use actual physical address
+        temp_phys_addr = lap_buf_addr;
+        temp_rip = 0;
+        temp_uuid = 0;
+        printf("Inside do_idle: LAP mmio reg: %ld, Virtual Address: %p\n",
+                lap_mmio_reg, temp_virt_addr);
         return true;
     }
 
+    //printf("Inside do_idle: Virtual Address: %ld\n", temp_virt_addr);
     return false;
 }
 
@@ -269,10 +284,12 @@ bool Accelerator::do_store(void *nothing)
     int rc;
 
     // DEBUG Print out data
+#if 0
     for (int i = 0; i < matrix_data_buf_size/3; ++i) {
         printf("%d ", matrix_data_buf + i * sizeof(int));
     }
     printf("\n");
+#endif
 
     rc = store(temp_virt_addr+2*sizeof(int), temp_phys_addr+2*sizeof(int),
             matrix_data_buf, matrix_data_buf_size, temp_rip, temp_uuid, true);
@@ -283,9 +300,11 @@ bool Accelerator::do_store(void *nothing)
     // XXX Memory leak, left for test right now
     //free(matrix_data_buf);
 
-    // XXX Testing with a delay here, see if the delay causes the bug.
-    int bytemask = ((1 << (1 << 3))-1);
-    W64 reg = ctx->storemask(LAP_MMIO_ADDR, 0, bytemask); // sizeshift=3 for 64bit-data
+    //int bytemask = ((1 << (1 << 3))-1);
+    //W64 reg = ctx->storemask(LAP_MMIO_ADDR, 0, bytemask); // sizeshift=3 for 64bit-data
+    lap_mmio_reg = 0;
+
+    // Testing with a delay here, see if the delay causes the bug.
     //int delay = 100;
     //marss_add_event(core_wakeup_signal, delay, NULL);
     return true;
@@ -297,32 +316,35 @@ bool Accelerator::runcycle(void *nothing)
 {
     switch (temp_state) {
         case Accel_Load_header:
-            printf("Loading header!\n");
+            //printf("Loading header!\n");
             if (cache_ready) {
                 if (do_load_header(nothing)) {
+                    printf("Load Header complete!\n");
                     temp_state = Accel_Load_content;
                 }
             }
             break;
 
         case Accel_Load_content:
-            printf("Loading content!\n");
+            //printf("Loading content!\n");
             if (cache_ready) {
                 if (do_load_content(nothing)) {
+                    printf("Load Content complete!\n");
                     temp_state = Accel_Cal;
                 }
             }
             break;
 
         case Accel_Cal:
-            printf("calculating!\n");
+            //printf("calculating!\n");
             if (do_calculate(nothing)) {
+                printf("Cal complete!\n");
                 temp_state = Accel_Store;
             }
             break;
 
         case Accel_Store:
-            printf("storing!\n");
+            //printf("storing!\n");
             if (do_store(nothing)) {
                 printf("Storing complete!\n");
                 temp_state = Accel_Idle;
@@ -409,6 +431,7 @@ int Accelerator::store(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uui
     //        buf.virtaddr, buf.data, buf.bytemask, buf.size);
 
     buf.write_to_ram(*ctx);
+    //ctx->storemask(buf.addr, buf.data, buf.bytemask);
 
     return ACCESS_OK;
 }
