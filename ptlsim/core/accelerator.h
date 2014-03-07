@@ -37,6 +37,7 @@ namespace Core {
         virtual bool do_load_content(void*);
         virtual bool do_store(void*);
         virtual bool do_calculate(void*);
+        virtual void send_interrupt();
 
         virtual void update_memory_hierarchy_ptr();
         virtual W64 exec(AcceleratorArg &arg);
@@ -68,6 +69,9 @@ namespace Core {
 
         /* MMIO control register value */
         W64 rc0;
+
+        /* QEMU IRQ value */
+        qemu_irq lap_irq;
     };
 }
 

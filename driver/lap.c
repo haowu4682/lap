@@ -4,8 +4,10 @@
 #include <linux/slab.h>
 #include <linux/cdev.h>
 #include <linux/mm.h>
+#include <linux/interrupt.h>
 
 #include <asm/uaccess.h>
+#include <asm/signal.h>
 
 #include "common.h"
 
@@ -14,7 +16,9 @@
 #define LAP_BUF_SIZE (1<<22)
 
 #define LAP_MMIO_ADDR 0x120000000
-#define LAP_MMIO_ADDR_SIZE 8
+#define LAP_MMIO_ADDR_SIZE 24
+
+#define LAP_IRQ_NO 11
 
 void *lap_mmio_buf = NULL;
 
@@ -89,7 +93,7 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
     int i;
     long failed_bytes_count;
 
-    phys_addr_t lap_phys_addr = virt_to_phys(lap_buf);
+    //phys_addr_t lap_phys_addr = virt_to_phys(lap_buf);
     uint64_t lap_virt_addr = (uint64_t) lap_buf;
 
 #if 0
@@ -104,8 +108,8 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
 
     //*((uint64_t *)LAP_MMIO_ADDR) = 1;
 
-    iowrite32(lap_virt_addr & 0xffffffff, lap_mmio_buf+4);
-    iowrite32(lap_virt_addr >> 32, lap_mmio_buf+8);
+    iowrite32(lap_virt_addr & 0xffffffff, lap_mmio_buf+8);
+    iowrite32(lap_virt_addr >> 32, lap_mmio_buf+12);
     iowrite32(0xffffffff, lap_mmio_buf);
 
     // Polling for LAP_MMIO_ADDR
@@ -146,6 +150,12 @@ int lap_mmap(struct file *filp, struct vm_area_struct *vma)
 #endif
 
     return 0;
+}
+
+irqreturn_t lap_handle_irq(int irq, void *dev_id)
+{
+    printk (KERN_DEBUG "Inside the lap handler!\n");
+    return IRQ_HANDLED;
 }
 
 struct file_operations lap_fops = {
@@ -195,8 +205,8 @@ static int lap_init(void)
     lap_mmio_buf = ioremap_nocache(LAP_MMIO_ADDR, LAP_MMIO_ADDR_SIZE);
     iowrite32(0, lap_mmio_buf);
     lap_mmio_data = ioread32(lap_mmio_buf);
-    printk("lap: lap_mmio_buf = %p, lap_mmio_data = %u\n", lap_mmio_buf, lap_mmio_data);
-    printk("lap: lap_buf = %p\n", lap_buf);
+    printk(KERN_DEBUG "lap: lap_mmio_buf = %p, lap_mmio_data = %u\n", lap_mmio_buf, lap_mmio_data);
+    printk(KERN_DEBUG "lap: lap_buf = %p\n", lap_buf);
 
     // Initiazlie driver number
     if (major_num) {
@@ -207,6 +217,7 @@ static int lap_init(void)
                 "lap");
         major_num = MAJOR(dev);
     }
+
     if (result < 0) {
         printk(KERN_WARNING "lap: can't get major %d\n", major_num);
         return result;
@@ -214,6 +225,9 @@ static int lap_init(void)
 
     // Initialize device
     setup_dev(&device);
+
+    // Register Interrupt Handler
+    result = request_irq(LAP_IRQ_NO, lap_handle_irq, 0 /* flags */, "lap", NULL);
 
     //major_num = register_blkdev(0, "lap");
     return 0;

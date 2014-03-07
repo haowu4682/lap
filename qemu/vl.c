@@ -156,6 +156,7 @@ int main(int argc, char **argv)
 
 #ifdef MARSS_QEMU
 #include <ptl-qemu.h>
+#include <hw/lap.h>
 #endif
 
 #include "qemu_socket.h"
@@ -630,6 +631,7 @@ static int bt_parse(const char *opt)
 /***********************************************************/
 /* HAO LAP device */
 
+#if 0
 #ifdef MARSS_QEMU
 #define lap_mem_base 0x120000000L
 #define LAP_MEM_SIZE 24
@@ -691,13 +693,20 @@ void lap_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 void lap_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     uint64_t hugeval = ((uint64_t) val) << 32;
-    if (addr >= 0 && addr < 8)
+    if (addr >= 0 && addr < 8) {
         lap_mmio_reg = val;
+    }
     else if (addr >= 8 && addr < 12)
         lap_buf_addr = (lap_buf_addr & 0xffffffff00000000L) | (val);
     else
         lap_buf_addr = (lap_buf_addr & 0xffffffff) | (hugeval);
     printf("lap_mem_writel: target_phys_addr: %p, val: %d!\n", addr, val);
+
+
+    // HAO: XXX Ad-hoc code to test correctness of interrupt handling, should be
+    // removed when interrupt code on Marss side is finished.
+    //printf("env->interrupt_request = %d", env->interrupt_request);
+
 }
 
 
@@ -726,6 +735,7 @@ static void lap_init(void)
     printf("LAP_INIT: lap_mem_base=%ld, lap_io_memory=%d\n", lap_mem_base, lap_io_memory);
 }
 #endif // ifdef MARSS_QEMU
+#endif
 
 /***********************************************************/
 /* QEMU Block devices */
@@ -3167,7 +3177,7 @@ int main(int argc, char **argv, char **envp)
 
 #ifdef MARSS_QEMU
     /* HAO init LAP devices */
-    lap_init();
+    //lap_init();
 #endif
 
     /* init USB devices */

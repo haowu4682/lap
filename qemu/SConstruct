@@ -385,6 +385,8 @@ hw_files += " usb-ohci.c"
 # hw_files += " eeprom93xx.c"
 hw_files += " eepro100.c ne2000.c pcnet-pci.c pcnet.c rtl8139.c e1000.c"
 # hw_files += " msmouse.c"
+# HAO: LAP file
+hw_files += " lap.c"
 
 if target_base_arch == "i386":
     hw_files += " pckbd.c vga.c dma.c vga-isa.c vga-pci.c ioapic.c"

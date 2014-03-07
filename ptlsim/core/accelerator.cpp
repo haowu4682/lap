@@ -7,6 +7,10 @@
 #include <cpuController.h>
 //#include <cacheTypes.h>
 
+
+#include <hw/irq.h>
+#include <hw/isa.h>
+
 using namespace Core;
 using namespace Memory;
 
@@ -82,108 +86,18 @@ void Accelerator::init()
 
     ctx = &machine.contextof(0);
 
+#if 0
+    // Initialize ISA and IRQ information
+    lap_isa_info.qdev.name = "lap",
+    //lap_isa_info.qdev.no_user = 1,
+    lap_isa_info.init = lap_init_fn;
+    isa_qdev_register(&lap_isa_info);
+    this->lap_irq = irq_lap;
+#endif
+
+
     printf("Initiating Accelerator!\n");
 
-#if 0
-    //Memory::CPUController *cpu_controller =
-    //    new Memory::CPUController(id, name, memoryHierarchy);
-
-    // Initialize Cache Hierarchy
-    // TODO Move this using config files
-    // Hard-coded shared-L2 module
-
-    // CPU Controller
-    ControllerBuilder::add_new_cont(machine, 1, "core_", "cpu", 0);
-
-    // XXX This may be useless for a LAP but we leave it here to be consistent
-    // L1 insn cache
-    // TODO Replace the magic number with a built-in config script.
-    machine.add_option("L1_I_", 1, "last_private", true);
-    machine.add_option("L1_I_", 1, "private", true);
-    ControllerBuilder::add_new_cont(machine, 1, "L1_I_", "mesi_cache", 6/*L1_128K_MESI*/);
-
-    // L1 data cache
-    // TODO Replace the magic number with a built-in config script.
-    machine.add_option("L1_D_", 1, "last_private", true);
-    machine.add_option("L1_D_", 1, "private", true);
-    ControllerBuilder::add_new_cont(machine, 1, "L1_D_", "mesi_cache", 6/*L1_128K_MESI*/);
-
-    foreach(i, 1) {
-        // L1 insn cache connection
-        ConnectionDef* connDef = machine.get_new_connection_def("p2p",
-                    "p2p_core_L1_I_", 1);
-        stringbuf core_;
-        core_ << "core_" << 1;
-        machine.add_new_connection(connDef, core_.buf, INTERCONN_TYPE_I);
-
-        stringbuf L1_I_;
-        L1_I_ << "L1_I_" << 1;
-        machine.add_new_connection(connDef, L1_I_.buf, INTERCONN_TYPE_UPPER);
-
-        Controller** cont = machine.controller_hash.get(core_);
-        assert(cont);
-        CPUController* cpuCont = (CPUController*)((*cont));
-        cpuCont->set_dcacheLineBits(log2(64));
-    }
-
-    foreach(i, 1) {
-        // L1 data cache connection
-        ConnectionDef* connDef = machine.get_new_connection_def("p2p",
-                    "p2p_core_L1_D_", 1);
-        stringbuf core_;
-        core_ << "core_" << 1;
-        machine.add_new_connection(connDef, core_.buf, INTERCONN_TYPE_D);
-
-        stringbuf L1_D_;
-        L1_D_ << "L1_D_" << 1;
-        machine.add_new_connection(connDef, L1_D_.buf, INTERCONN_TYPE_UPPER);
-
-        Controller** cont = machine.controller_hash.get(core_);
-        assert(cont);
-        CPUController* cpuCont = (CPUController*)((*cont));
-        cpuCont->set_dcacheLineBits(log2(64));
-    }
-
-    // L1-L2 connection
-    foreach(i, 1) {
-        ConnectionDef* connDef = machine.get_new_connection_def("split_bus",
-                "split_bus_0", i);
-
-        foreach(j, 2) {
-            stringbuf L1_I_;
-            L1_I_ << "L1_I_" << j;
-            machine.add_new_connection(connDef, L1_I_.buf, INTERCONN_TYPE_LOWER);
-        }
-
-
-        stringbuf L2_0;
-        L2_0 << "L2_0";
-        machine.add_new_connection(connDef, L2_0.buf, INTERCONN_TYPE_UPPER);
-
-
-        foreach(j, 2) {
-            stringbuf L1_D_;
-            L1_D_ << "L1_D_" << j;
-            machine.add_new_connection(connDef, L1_D_.buf, INTERCONN_TYPE_LOWER);
-        }
-    }
-    connDef = machine.get_new_connection_def("p2p",
-            "p2p_L2_0_L1_D_0", 1);
-
-
-    stringbuf L2_0;
-    L2_0 << "L2_0";
-    machine.add_new_connection(connDef, L2_0.buf, INTERCONN_TYPE_UPPER2);
-
-    stringbuf L1_D_0;
-    L1_D_0 << "L1_D_0";
-    machine.add_new_connection(connDef, L1_D_0.buf, INTERCONN_TYPE_LOWER);
-
-    machine.setup_interconnects();
-    machine.memoryHierarchyPtr->setup_full_flags();
-
-    printf("Accelerator Initialization finished!\n");
-#endif
 }
 
 // Check the MMIO register for request
@@ -216,7 +130,7 @@ bool Accelerator::do_load_header(void *nothing)
 {
     int rc;
 
-    printf("before load, size=%d\n", sizeof(matrix_header));
+    printf("before load, size=%lu\n", sizeof(matrix_header));
     rc = load(temp_virt_addr, temp_phys_addr,
             &matrix_header, sizeof(matrix_header), temp_rip, temp_uuid, true);
     if (rc != ACCESS_OK) {
@@ -307,7 +221,20 @@ bool Accelerator::do_store(void *nothing)
     // Testing with a delay here, see if the delay causes the bug.
     //int delay = 100;
     //marss_add_event(core_wakeup_signal, delay, NULL);
+
+
+    // Send an interrupt to the CPU
+    send_interrupt();
     return true;
+}
+
+void Accelerator::send_interrupt()
+{
+    ctx->interrupt_request |= CPU_INTERRUPT_HARD;
+#if 0
+    qemu_set_irq(lap_irq, 1);
+    qemu_set_irq(lap_irq, 0);
+#endif
 }
 
 // Currently it only tests loading in the memory Hierarchy.
@@ -578,26 +505,6 @@ bool Accelerator::load_cb(void *arg)
     return true;
 }
 
-#if 0
-int Accelerator::load_blocked(W64 addr, W64& data)
-{
-    int rc = ACCESS_OK;
-
-    printf("Trying to load.\n");
-    cache_ready = true;
-    do {
-        if (cache_ready) {
-            //rc = load(addr, data);
-        }
-        if (rc != ACCESS_OK && rc != ACCESS_CACHE_MISS) {
-            return rc;
-        }
-    } while (rc != ACCESS_OK);
-
-    return ACCESS_OK;
-}
-#endif
-
 W64 Accelerator::exec(AcceleratorArg& arg)
 {
 
@@ -633,3 +540,124 @@ W64 Accelerator::exec(AcceleratorArg& arg)
     return 0;
 }
 
+#if 0
+int Accelerator::load_blocked(W64 addr, W64& data)
+{
+    int rc = ACCESS_OK;
+
+    printf("Trying to load.\n");
+    cache_ready = true;
+    do {
+        if (cache_ready) {
+            //rc = load(addr, data);
+        }
+        if (rc != ACCESS_OK && rc != ACCESS_CACHE_MISS) {
+            return rc;
+        }
+    } while (rc != ACCESS_OK);
+
+    return ACCESS_OK;
+}
+#endif
+
+// Original init function content below.
+#if 0
+    //Memory::CPUController *cpu_controller =
+    //    new Memory::CPUController(id, name, memoryHierarchy);
+
+    // Initialize Cache Hierarchy
+    // TODO Move this using config files
+    // Hard-coded shared-L2 module
+
+    // CPU Controller
+    ControllerBuilder::add_new_cont(machine, 1, "core_", "cpu", 0);
+
+    // XXX This may be useless for a LAP but we leave it here to be consistent
+    // L1 insn cache
+    // TODO Replace the magic number with a built-in config script.
+    machine.add_option("L1_I_", 1, "last_private", true);
+    machine.add_option("L1_I_", 1, "private", true);
+    ControllerBuilder::add_new_cont(machine, 1, "L1_I_", "mesi_cache", 6/*L1_128K_MESI*/);
+
+    // L1 data cache
+    // TODO Replace the magic number with a built-in config script.
+    machine.add_option("L1_D_", 1, "last_private", true);
+    machine.add_option("L1_D_", 1, "private", true);
+    ControllerBuilder::add_new_cont(machine, 1, "L1_D_", "mesi_cache", 6/*L1_128K_MESI*/);
+
+    foreach(i, 1) {
+        // L1 insn cache connection
+        ConnectionDef* connDef = machine.get_new_connection_def("p2p",
+                    "p2p_core_L1_I_", 1);
+        stringbuf core_;
+        core_ << "core_" << 1;
+        machine.add_new_connection(connDef, core_.buf, INTERCONN_TYPE_I);
+
+        stringbuf L1_I_;
+        L1_I_ << "L1_I_" << 1;
+        machine.add_new_connection(connDef, L1_I_.buf, INTERCONN_TYPE_UPPER);
+
+        Controller** cont = machine.controller_hash.get(core_);
+        assert(cont);
+        CPUController* cpuCont = (CPUController*)((*cont));
+        cpuCont->set_dcacheLineBits(log2(64));
+    }
+
+    foreach(i, 1) {
+        // L1 data cache connection
+        ConnectionDef* connDef = machine.get_new_connection_def("p2p",
+                    "p2p_core_L1_D_", 1);
+        stringbuf core_;
+        core_ << "core_" << 1;
+        machine.add_new_connection(connDef, core_.buf, INTERCONN_TYPE_D);
+
+        stringbuf L1_D_;
+        L1_D_ << "L1_D_" << 1;
+        machine.add_new_connection(connDef, L1_D_.buf, INTERCONN_TYPE_UPPER);
+
+        Controller** cont = machine.controller_hash.get(core_);
+        assert(cont);
+        CPUController* cpuCont = (CPUController*)((*cont));
+        cpuCont->set_dcacheLineBits(log2(64));
+    }
+
+    // L1-L2 connection
+    foreach(i, 1) {
+        ConnectionDef* connDef = machine.get_new_connection_def("split_bus",
+                "split_bus_0", i);
+
+        foreach(j, 2) {
+            stringbuf L1_I_;
+            L1_I_ << "L1_I_" << j;
+            machine.add_new_connection(connDef, L1_I_.buf, INTERCONN_TYPE_LOWER);
+        }
+
+
+        stringbuf L2_0;
+        L2_0 << "L2_0";
+        machine.add_new_connection(connDef, L2_0.buf, INTERCONN_TYPE_UPPER);
+
+
+        foreach(j, 2) {
+            stringbuf L1_D_;
+            L1_D_ << "L1_D_" << j;
+            machine.add_new_connection(connDef, L1_D_.buf, INTERCONN_TYPE_LOWER);
+        }
+    }
+    connDef = machine.get_new_connection_def("p2p",
+            "p2p_L2_0_L1_D_0", 1);
+
+
+    stringbuf L2_0;
+    L2_0 << "L2_0";
+    machine.add_new_connection(connDef, L2_0.buf, INTERCONN_TYPE_UPPER2);
+
+    stringbuf L1_D_0;
+    L1_D_0 << "L1_D_0";
+    machine.add_new_connection(connDef, L1_D_0.buf, INTERCONN_TYPE_LOWER);
+
+    machine.setup_interconnects();
+    machine.memoryHierarchyPtr->setup_full_flags();
+
+    printf("Accelerator Initialization finished!\n");
+#endif
