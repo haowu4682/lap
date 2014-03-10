@@ -1,10 +1,12 @@
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/cdev.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
+#include <linux/wait.h>
 
 #include <asm/uaccess.h>
 #include <asm/signal.h>
@@ -18,7 +20,9 @@
 #define LAP_MMIO_ADDR 0x120000000
 #define LAP_MMIO_ADDR_SIZE 24
 
-#define LAP_IRQ_NO 11
+#define LAP_IRQ_NO 13
+
+DECLARE_WAIT_QUEUE_HEAD(lap_queue);
 
 void *lap_mmio_buf = NULL;
 
@@ -114,8 +118,9 @@ ssize_t lap_read(struct file *filp, char __user *buf, size_t count,
 
     // Polling for LAP_MMIO_ADDR
     //while (*((uint64_t *)LAP_MMIO_ADDR) != 0)
-    while (ioread32(lap_mmio_buf) != 0)
-        ;
+    while (ioread32(lap_mmio_buf) != 0) {
+        wait_event_interruptible(lap_queue, ioread32(lap_mmio_buf) == 0);
+    }
 
     // TODO Use a more elegant way to allow user to define reading pattern
     // Read from beginning
@@ -155,6 +160,7 @@ int lap_mmap(struct file *filp, struct vm_area_struct *vma)
 irqreturn_t lap_handle_irq(int irq, void *dev_id)
 {
     printk (KERN_DEBUG "Inside the lap handler!\n");
+    wake_up_interruptible(&lap_queue);
     return IRQ_HANDLED;
 }
 

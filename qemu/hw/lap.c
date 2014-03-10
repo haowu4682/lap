@@ -20,6 +20,7 @@ void lap_send_irq(int level)
 
 void lap_finish()
 {
+    lap_mmio_reg = 0;
     lap_send_irq(1);
     lap_send_irq(0);
 }
