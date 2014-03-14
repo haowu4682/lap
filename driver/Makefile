@@ -2,8 +2,8 @@
 KVER := $(shell uname -r)
 
 ## For kernel build tree
-#KDIR := /lib/modules/$(KVER)/build
-KDIR := ../../linux-3.11.8/
+KDIR := /lib/modules/$(KVER)/build
+#KDIR := ../../linux-3.11.8/
 
 PWD  := `pwd`
 

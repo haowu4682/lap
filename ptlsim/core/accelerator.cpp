@@ -167,7 +167,7 @@ bool Accelerator::do_load_content(void *nothing)
 void print_matrix(int *A) {
     for (int i = 0; i < matrix_header.m; ++i) {
         for (int j = 0; j < matrix_header.n; ++j) {
-            printf("%d ", A[i*matrix_header.m+j]);
+            printf("%d ", A[i*matrix_header.n+j]);
         }
         printf("\n");
     }
@@ -182,9 +182,9 @@ bool Accelerator::do_calculate(void *nothing)
     // XXX Current dummy operation: C = A + B
     for (int i = 0; i < matrix_header.m; ++i) {
         for (int j = 0; j < matrix_header.n; ++j) {
-            matrix_data.C[i*matrix_header.m+j] =
-                matrix_data.A[i*matrix_header.m+j] +
-                matrix_data.B[i*matrix_header.m+j];
+            matrix_data.C[i*matrix_header.n+j] =
+                matrix_data.A[i*matrix_header.n+j] +
+                matrix_data.B[i*matrix_header.n+j];
         }
     }
 
@@ -195,7 +195,7 @@ bool Accelerator::do_calculate(void *nothing)
 
 bool Accelerator::do_store(void *nothing)
 {
-    int rc;
+    int rc = ACCESS_OK;
 
     // DEBUG Print out data
 #if 0
@@ -207,6 +207,7 @@ bool Accelerator::do_store(void *nothing)
 
     rc = store(temp_virt_addr+2*sizeof(int), temp_phys_addr+2*sizeof(int),
             matrix_data_buf, matrix_data_buf_size, temp_rip, temp_uuid, true);
+    printf("matrix_data_buf_size = %lu\n", matrix_data_buf_size);
     if (rc != ACCESS_OK) {
         return false;
     }
@@ -323,11 +324,11 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid
     //printf("Accelerator Cache Hit!\n");
     // On cache hit, retrieve data from the memory location.
     // TODO: use PHYSICAL address here.
-    printf("virtaddr=%llu, sizeshift=%d\n", virt_addr, sizeshift);
-    printf("kernel_mode=%d, mmio=%d", ctx->kernel_mode, ctx->is_mmio_addr(virt_addr, 0));
+    //printf("kernel_mode=%d, mmio=%d", ctx->kernel_mode, ctx->is_mmio_addr(virt_addr, 0));
     data = ctx->loadvirt(virt_addr, sizeshift); // sizeshift=3 for 64bit-data
     //data = ctx->loadphys(phys_addr, false, sizeshift); // sizeshift=3 for 64bit-data
 
+    printf("LOAD virtaddr=%llx, data=%ld, sizeshift=%d\n", virt_addr, data, sizeshift);
     return ACCESS_OK;
 }
 
@@ -356,11 +357,12 @@ int Accelerator::store(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uui
             Memory::MEMORY_OP_WRITE);
     request->set_coreSignal(&dcache_signal);
 
-    memoryHierarchy->access_cache(request);
+    //memoryHierarchy->access_cache(request);
 
     //printf("Writing to RAM: virtaddr = %llu, data = %llu, bytemask = %d, size = %d\n",
     //        buf.virtaddr, buf.data, buf.bytemask, buf.size);
 
+    printf("STORE virtaddr=%llx, data=%ld, sizeshift=%d\n", virt_addr, data, sizeshift);
     buf.write_to_ram(*ctx);
     //ctx->storemask(buf.addr, buf.data, buf.bytemask);
 

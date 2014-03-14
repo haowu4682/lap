@@ -11,7 +11,7 @@ void set_matrix_zero(int *A, int m, int n)
 {
     for (int i =0; i < m; ++i)
         for (int j = 0; j < n; ++j)
-            A[i*m+j] = 0;
+            A[i*n+j] = 0;
 }
 
 void init_matrix(int *A, int m, int n)
@@ -19,14 +19,14 @@ void init_matrix(int *A, int m, int n)
     for (int i =0; i < m; ++i)
         for (int j = 0; j < n; ++j)
 //            A[i*m+j] = rand();
-           A[i*m+j] = i+j;
+           A[i*n+j] = i+j;
 }
 
 void print_matrix(int *A, int m, int n)
 {
     for (int i =0; i < m; ++i) {
         for (int j = 0; j < n; ++j)
-            printf("%d ", A[i*m+j]);
+            printf("%d ", A[i*n+j]);
         printf("\n");
     }
 }
