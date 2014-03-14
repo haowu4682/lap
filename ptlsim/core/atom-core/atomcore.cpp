@@ -3398,6 +3398,9 @@ void AtomCore::check_ctx_changes()
             ATOMCORELOG("Thread flush old_eip: ",
                     HEXADDR(threads[i]->ctx.old_eip), " new-eip: ",
                     HEXADDR(threads[i]->ctx.eip));
+            if (threads[i]->ctx.eip == 0x816f7ac4)
+                printf("flush pipeline for old_eip = %x, new_eip = %x\n",
+                        threads[i]->ctx.old_eip, threads[i]->ctx.eip);
             threads[i]->flush_pipeline();
         }
     }

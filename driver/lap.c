@@ -233,7 +233,8 @@ static int lap_init(void)
     setup_dev(&device);
 
     // Register Interrupt Handler
-    result = request_irq(LAP_IRQ_NO, lap_handle_irq, 0 /* flags */, "lap", NULL);
+    result = request_irq(LAP_IRQ_NO, lap_handle_irq, IRQF_TRIGGER_FALLING /* flags */, "lap", NULL);
+    printk(KERN_DEBUG "request irq result: %d", result);
 
     //major_num = register_blkdev(0, "lap");
     return 0;

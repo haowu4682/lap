@@ -21,6 +21,7 @@ void lap_send_irq(int level)
 void lap_finish()
 {
     lap_mmio_reg = 0;
+    printf("Sending interrupt!\n");
     lap_send_irq(1);
     lap_send_irq(0);
 }
@@ -88,20 +89,16 @@ static void lap_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     uint64_t hugeval = ((uint64_t) val) << 32;
     if (addr >= 0 && addr < 8) {
         lap_mmio_reg = val;
+
+        // HAO: XXX Ad-hoc code to test correctness of interrupt handling, should be
+        // removed when interrupt code on Marss side is finished.
+        //lap_finish();
     }
     else if (addr >= 8 && addr < 12)
         lap_buf_addr = (lap_buf_addr & 0xffffffff00000000L) | (val);
     else
         lap_buf_addr = (lap_buf_addr & 0xffffffff) | (hugeval);
     printf("lap_mem_writel: target_phys_addr: %p, val: %d!\n", addr, val);
-
-
-    // HAO: XXX Ad-hoc code to test correctness of interrupt handling, should be
-    // removed when interrupt code on Marss side is finished.
-    //printf("env->interrupt_request = %d", env->interrupt_request);
-    printf("Sending interrupt!\n");
-    lap_finish();
-    printf("Interrupt Sent!\n");
 
 }
 

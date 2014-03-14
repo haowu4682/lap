@@ -230,7 +230,11 @@ bool Accelerator::do_store(void *nothing)
 
 void Accelerator::send_interrupt()
 {
-    ctx->interrupt_request |= CPU_INTERRUPT_HARD;
+    //ctx->handle_interrupt = 1;
+    //ctx->exception_is_int = 0;
+    //ctx->interrupt_request |= CPU_INTERRUPT_HARD;
+
+    lap_finish();
 #if 0
     qemu_set_irq(lap_irq, 1);
     qemu_set_irq(lap_irq, 0);

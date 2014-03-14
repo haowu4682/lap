@@ -95,6 +95,11 @@ extern uint64_t lap_mmio_reg;
  */
 extern uint64_t lap_buf_addr;
 
+/**
+ * lap interrupt to sent when LAP operation finishes.
+ */
+extern void lap_finish();
+
 /*
  * ptlsim_init
  * returns void
