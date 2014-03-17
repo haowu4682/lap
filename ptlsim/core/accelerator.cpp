@@ -18,6 +18,9 @@ uint64_t lap_mmio_reg;
 uint64_t lap_buf_addr;
 #define LAP_MMIO_ADDR 0x120000000
 
+uint64_t cal_cycle_count;
+uint64_t max_cal_cycle;
+
 enum AccelState {
     Accel_Idle,
     Accel_Load_header,
@@ -85,6 +88,9 @@ void Accelerator::init()
     cache_ready = false;
 
     ctx = &machine.contextof(0);
+
+    // XXX Change this during experiment
+    max_cal_cycle = 1000000L;
 
 #if 0
     // Initialize ISA and IRQ information
@@ -176,10 +182,11 @@ void print_matrix(int *A) {
 bool Accelerator::do_calculate(void *nothing)
 {
     // Debugging: print out A, B
-    print_matrix(matrix_data.A);
-    print_matrix(matrix_data.B);
+    //print_matrix(matrix_data.A);
+    //print_matrix(matrix_data.B);
 
     // XXX Current dummy operation: C = A + B
+#if 0
     for (int i = 0; i < matrix_header.m; ++i) {
         for (int j = 0; j < matrix_header.n; ++j) {
             matrix_data.C[i*matrix_header.n+j] =
@@ -187,10 +194,11 @@ bool Accelerator::do_calculate(void *nothing)
                 matrix_data.B[i*matrix_header.n+j];
         }
     }
+#endif
 
-    print_matrix(matrix_data.C);
+    //print_matrix(matrix_data.C);
 
-    return true;
+    return ((++cal_cycle_count) >= max_cal_cycle);
 }
 
 bool Accelerator::do_store(void *nothing)
@@ -211,6 +219,8 @@ bool Accelerator::do_store(void *nothing)
     if (rc != ACCESS_OK) {
         return false;
     }
+
+    printf("Going to send finish signal\n");
 
     // XXX Memory leak, left for test right now
     //free(matrix_data_buf);
@@ -276,7 +286,7 @@ bool Accelerator::runcycle(void *nothing)
             break;
 
         case Accel_Store:
-            //printf("storing!\n");
+            printf("storing!\n");
             if (do_store(nothing)) {
                 printf("Storing complete!\n");
                 temp_state = Accel_Idle;
@@ -325,10 +335,13 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid
     // On cache hit, retrieve data from the memory location.
     // TODO: use PHYSICAL address here.
     //printf("kernel_mode=%d, mmio=%d", ctx->kernel_mode, ctx->is_mmio_addr(virt_addr, 0));
+    bool old_kernel_mode = ctx->kernel_mode;
+    ctx->kernel_mode = true;
     data = ctx->loadvirt(virt_addr, sizeshift); // sizeshift=3 for 64bit-data
+    ctx->kernel_mode = old_kernel_mode;
     //data = ctx->loadphys(phys_addr, false, sizeshift); // sizeshift=3 for 64bit-data
 
-    printf("LOAD virtaddr=%llx, data=%ld, sizeshift=%d\n", virt_addr, data, sizeshift);
+    //printf("LOAD virtaddr=%llx, data=%ld, sizeshift=%d\n", virt_addr, data, sizeshift);
     return ACCESS_OK;
 }
 
@@ -362,8 +375,11 @@ int Accelerator::store(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uui
     //printf("Writing to RAM: virtaddr = %llu, data = %llu, bytemask = %d, size = %d\n",
     //        buf.virtaddr, buf.data, buf.bytemask, buf.size);
 
-    printf("STORE virtaddr=%llx, data=%ld, sizeshift=%d\n", virt_addr, data, sizeshift);
+    //printf("STORE virtaddr=%llx, data=%ld, sizeshift=%d\n", virt_addr, data, sizeshift);
+    bool old_kernel_mode = ctx->kernel_mode;
+    ctx->kernel_mode = true;
     buf.write_to_ram(*ctx);
+    ctx->kernel_mode = old_kernel_mode;
     //ctx->storemask(buf.addr, buf.data, buf.bytemask);
 
     return ACCESS_OK;
@@ -457,7 +473,7 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, void *data, size_t size, W64
         cur_virt_addr = virt_addr + i;
         cur_phys_addr = phys_addr + i;
 
-        printf("cur_virt_addr = %llu\n", cur_virt_addr);
+        //printf("cur_virt_addr = %llu\n", cur_virt_addr);
         rc = load(cur_virt_addr, cur_phys_addr, word, rip, uuid, is_requested, sizeshift);
         if (rc < 0) {
             ret = ACCESS_CACHE_MISS;
