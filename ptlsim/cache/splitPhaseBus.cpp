@@ -276,13 +276,13 @@ BusQueueEntry* BusInterconnect::arbitrate_round_robin()
     return NULL;
 }
 
-bool BusInterconnect::can_broadcast(BusControllerQueue *queue)
+bool BusInterconnect::can_broadcast(BusControllerQueue *queue, MemoryRequest *request)
 {
     bool isFull = false;
     foreach(i, controllers.count()) {
         if(controllers[i]->controller == queue->controller)
             continue;
-        isFull |= controllers[i]->controller->is_full(true);
+        isFull |= controllers[i]->controller->is_full(true, request);
     }
     if(isFull) {
         return false;
@@ -325,7 +325,7 @@ bool BusInterconnect::broadcast_cb(void *arg)
      * entry and  pass the queue entry as argument to the broadcast
      * signal so next time it doesn't need to arbitrate
      */
-    if(!can_broadcast(queueEntry->controllerQueue)) {
+    if(!can_broadcast(queueEntry->controllerQueue, queueEntry->request)) {
         memdebug("Bus cant do addr broadcast\n");
         set_bus_busy(true);
         marss_add_event(&broadcast_,
@@ -352,7 +352,7 @@ bool BusInterconnect::broadcast_completed_cb(void *arg)
         return true;
     }
 
-	if(!can_broadcast(queueEntry->controllerQueue)) {
+	if(!can_broadcast(queueEntry->controllerQueue, queueEntry->request)) {
 		set_bus_busy(true);
 		marss_add_event(&broadcastCompleted_,
 				2, NULL);
@@ -481,7 +481,7 @@ bool BusInterconnect::data_broadcast_cb(void *arg)
      * entry and  pass the queue entry as argument to the broadcast
      * signal so next time it doesn't need to arbitrate
      */
-    if(!can_broadcast(pendingEntry->controllerQueue)) {
+    if(!can_broadcast(pendingEntry->controllerQueue, pendingEntry->request)) {
         marss_add_event(&dataBroadcast_,
                 latency_, arg);
         return true;

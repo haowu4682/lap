@@ -63,6 +63,9 @@ struct PTLsimMachine : public Statable {
   virtual void flush_tlb_virt(Context& ctx, Waddr virtaddr);
   virtual void dump_configuration(ostream& os) const;
   virtual void reset(){};
+#ifdef DRAMSIM
+  virtual void simulation_done();
+#endif
   virtual void shutdown(){};
   static void addmachine(const char* name, PTLsimMachine* machine);
   static void removemachine(const char* name, PTLsimMachine* machine);
@@ -286,6 +289,14 @@ struct PTLsimConfig {
   stringbuf simpoint_file;
   W64 simpoint_interval;
   stringbuf simpoint_chk_name;
+
+#ifdef DRAMSIM
+  // DRAMSim2 options
+  stringbuf dramsim_device_ini_file;
+  stringbuf dramsim_system_ini_file;
+  stringbuf dramsim_pwd;
+  stringbuf dramsim_results_dir_name;
+#endif
 
   void reset();
 

@@ -31,6 +31,9 @@
 #include <ptl-qemu.h>
 
 #include <test.h>
+#ifdef ENABLE_GPERF
+#include <google/profiler.h>
+#endif
 /*
  * DEPRECATED CONFIG OPTIONS:
  perfect_cache
@@ -240,6 +243,14 @@ void ConfigurationParser<PTLsimConfig>::reset() {
   simpoint_file = "";
   simpoint_interval = 10e6;
   simpoint_chk_name = "simpoint";
+#ifdef DRAMSIM
+  // DRAMSim2 options
+  dramsim_device_ini_file = "ini/DDR3_micron_8M_8B_x16_sg15.ini";
+  dramsim_system_ini_file = "system.ini";
+  dramsim_pwd = "../DRAMSim2";
+  dramsim_results_dir_name = "MARSS";
+#endif
+
 }
 
 template <>
@@ -346,6 +357,13 @@ void ConfigurationParser<PTLsimConfig>::setup() {
   add(simpoint_file, "simpoint", "Create simpoint based checkpoints from given 'simpoint' file");
   add(simpoint_interval, "simpoint-interval", "Number of instructions in each interval");
   add(simpoint_chk_name, "simpoint-chk-name", "Checkpoint name prefix");
+#ifdef DRAMSIM
+  section("DRAMSim2 Config options");
+  add(dramsim_device_ini_file,  "dramsim-device-ini-file",   "Device ini file that DRAMSim2 should load");
+  add(dramsim_pwd,              "dramsim-pwd",               "Working directory that DRAMSim2 should execute in");
+  add(dramsim_system_ini_file,  "dramsim-system-ini-file",   "System ini file that DRAMSim2 should load"); 
+  add(dramsim_results_dir_name, "dramsim-results-dir-name",  "Name of the results directory where the DRAMSim2 output should go"); 
+#endif
 };
 
 #ifndef CONFIG_ONLY
@@ -516,6 +534,10 @@ static void flush_stats()
     if(time_stats_file) {
         time_stats_file->close();
     }
+    //FIXME: this assumes that flush_stats is only called at the end, which is true now but might not be true in the long run
+#ifdef DRAMSIM
+    ((BaseMachine*)machine)->simulation_done();
+#endif
 
     ptl_logfile << "Stats Summary:\n";
     (StatsBuilder::get()).dump_summary(ptl_logfile);
@@ -524,6 +546,9 @@ static void flush_stats()
 static void kill_simulation()
 {
     assert(config.kill || config.kill_after_run);
+#ifdef ENABLE_GPERF
+    ProfilerStop(); 
+#endif 
 
     ptl_logfile << "Received simulation kill signal, stopped the simulation and killing the VM\n";
 #ifdef TRACE_RIP
@@ -801,6 +826,14 @@ PTLsimMachine* PTLsimMachine::getmachine(const char* name) {
   return *p;
 }
 
+#ifdef DRAMSIM
+void PTLsimMachine::simulation_done()
+{
+    //TODO: figure out how to get a memory hierarchy pointer with the new
+    // config mechanism and send simulation done to the dramsim memory controller
+}
+#endif
+
 /* Currently executing machine model: */
 PTLsimMachine* curr_ptl_machine = NULL;
 
@@ -858,12 +891,12 @@ extern "C" void ptl_machine_configure(const char* config_str_) {
         config.printusage(cerr, config);
         config.help=0;
     }
-
+/*
     if(config.kill) {
         flush_stats();
         kill_simulation();
     }
-
+*/
     // reset machine's initalized variable only if it is the first run
 
 
@@ -1363,7 +1396,9 @@ extern "C" uint8_t ptl_simulate() {
         ptl_logfile << " sim_cycle: " << sim_cycle;
 		ptl_logfile << endl;
     }
-
+#ifdef ENABLE_GPERF
+    ProfilerStart("marss.prof");
+#endif
 	machine->run(config);
 
 	if (config.stop_at_insns <= total_insns_committed || config.kill == true

@@ -96,6 +96,9 @@ void MemoryHierarchy::clock()
 				cpuControllers_[i]);
 		cpuController->clock();
 	}
+#ifdef DRAMSIM
+    ((MemoryController*)memoryController_)->mem->update();	
+#endif
 
 	Event *event;
 	while(!eventQueue_.empty()) {
@@ -109,6 +112,13 @@ void MemoryHierarchy::clock()
 		}
 	}
 }
+#ifdef DRAMSIM
+void MemoryHierarchy::simulation_done()
+{
+	//do a final dump of statistics in DRAMSim which completes the vis file
+	((MemoryController*)memoryController_)->mem->printStats(true);	
+}
+#endif
 
 void MemoryHierarchy::reset()
 {
