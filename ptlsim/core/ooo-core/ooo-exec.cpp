@@ -496,6 +496,16 @@ int ReorderBufferEntry::issue() {
     fu = lsbindex(executable_on_fu);
     clearbit(core.fu_avail, fu);
     core.robs_on_fu[fu] = this;
+
+    /* Update mcpat counters */
+
+    W16 mask = (W16) - 1;
+    if (fu >= 0 && fu <= 3) {
+        thread.thread_stats.issue.result.ialu_accesses++;
+    }
+    else if (fu >= 4 && fu <= 7)
+        thread.thread_stats.issue.result.fpu_accesses++;
+
     cycles_left = fuinfo[uop.opcode].latency;
     changestate(thread.rob_issued_list[cluster]);
 
@@ -2069,6 +2079,7 @@ rob_cont:
 
     lsq->physaddr = pteaddr >> 3;
 
+    //cout << "ROB tlb walk " << sim_cycle << endl;
     bool L1_hit = core.memoryHierarchy->access_cache(request);
 
     if(L1_hit) {
@@ -2551,7 +2562,9 @@ void ReorderBufferEntry::release() {
  */
 int OooCore::issue(int cluster) {
 
+    
     int issuecount = 0;
+    int stats = 0;
     int maxwidth = clusters[cluster].issue_width;
 
     int last_issue_id = -1;
@@ -2570,11 +2583,6 @@ int OooCore::issue(int cluster) {
         assert(inrange(idx, 0, ROB_SIZE-1));
         ReorderBufferEntry& rob = thread->ROB[idx];
 
-		if unlikely (opclassof(rob.uop.opcode) == OPCLASS_FP)
-			core_stats.iq_fp_reads++;
-		else
-			core_stats.iq_reads++;
-
         rob.iqslot = iqslot;
         int rc = rob.issue();
         switch(rc) {
@@ -2584,8 +2592,16 @@ int OooCore::issue(int cluster) {
             default:
                 break;
         }
-        if(rc != ISSUE_SKIPPED)
+        if(rc != ISSUE_SKIPPED) {
             issuecount++;
+		if unlikely (opclassof(rob.uop.opcode) == OPCLASS_FP) {
+			core_stats.iq_fp_reads++;
+			stats++;
+		} else {
+			core_stats.iq_reads++;
+			stats++;
+		}
+	}
     }
 
     per_cluster_stats_update(issue.width,

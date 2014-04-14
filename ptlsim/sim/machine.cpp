@@ -18,6 +18,10 @@
 #include <memoryHierarchy.h>
 
 #include <cstdarg>
+#include <vector>
+
+#include <mcpat.h>
+#include <string>
 
 using namespace Core;
 using namespace Memory;
@@ -26,6 +30,14 @@ using namespace Memory;
 MachineBuilder machineBuilder("_default_", NULL);
 BaseMachine coremodel("base");
 
+std::vector<struct data> dataTrace;
+
+extern void mcpat_initialize(root_system *mcpatData);
+extern void print_mcpat_config(root_system *mcpatData);
+extern void print_mcpat_stats(root_system *mcpatData);
+extern void mcpat_set_config(root_system *mcpatData, std::string fileName);
+extern double print_mcpat_percycle_power(root_system *mcpatData);
+extern void mcpat_flush_data();
 
 BaseMachine::BaseMachine(const char *name)
 {
@@ -210,10 +222,210 @@ void BaseMachine::dump_configuration(ostream& os) const
 	ptl_logfile << "Dumped all machine configuration\n";
 }
 
+void BaseMachine::dump_machine_area()
+{
+	double area = mcpat_get_area(&mcpatData);	
+	ptl_logfile << " Area is : " << area << endl;
+}
+
+void BaseMachine::dump_machine_tdp()
+{
+	double core, uncore;
+	mcpat_get_TDP(&mcpatData, &core, &uncore);	
+	ptl_logfile << " Core TDP is : " << core << " Uncore: " << uncore << endl;
+}
+
+void BaseMachine::dump_mcpat_configuration()
+{
+	mcpat_initialize(&mcpatData);
+
+	int ccount = cores.count();
+	mcpatData.number_of_cores = ccount; //cores.count();
+	mcpatData.homogeneous_cores = 0;
+	mcpatData.number_of_L1Directories = 0;
+	mcpatData.homogeneous_L1Directories = 0;
+	mcpatData.number_of_L2Directories = 0;
+	mcpatData.number_of_L2s = 0;
+	mcpatData.number_of_L3s = 0;
+	mcpatData.homogeneous_L2Directories = 0;
+	mcpatData.number_of_dir_levels = 0;
+	mcpatData.homogeneous_L2s = 0;
+	mcpatData.homogeneous_L3s = 0;
+	mcpatData.number_of_NoCs = 0;
+	mcpatData.mc.number_mcs = 0;
+	mcpatData.homogeneous_ccs = 0;
+	mcpatData.target_core_clockrate = (config.core_freq_hz / (1000000));
+	mcpatData.core_tech_node = config.core_tech;
+	mcpatData.temperature = 350;
+	mcpatData.virtual_address_width = 64;
+	mcpatData.physical_address_width = 52;
+	mcpatData.virtual_memory_page_size = 4096;
+	mcpatData.device_type = 0;
+	mcpatData.longer_channel_device = 1;
+	mcpatData.target_chip_area = 1;
+	mcpatData.Max_area_deviation=1;
+        mcpatData.Max_power_deviation=1;
+	mcpatData.Embedded = false;
+	mcpatData.interconnect_projection_type = 0;
+	mcpatData.machine_bits = 64;
+	mcpatData.virtual_address_width = 64;
+	mcpatData.physical_address_width = 52;
+	mcpatData.virtual_memory_page_size = 4096;
+	mcpatData.opt_dynamic_power = false;
+        mcpatData.opt_lakage_power = false;
+        mcpatData.opt_clockrate = true;
+        mcpatData.opt_area = false;
+
+	
+	foreach (i, cores.count()) {
+		mcpatData.core[i].clock_rate = (config.core_freq_hz / (1000000));
+		cores[i]->dump_mcpat_configuration(&(mcpatData.core[i]));
+	}
+
+	int countl1i = 0;
+	int countl1d = 0;
+	int countl2 = 0;
+	int l2dir = 0;
+	int countl3 = 0;
+	int countm = 0;
+	int idx;
+	foreach (i, controllers.count()) {
+		if ((strstr(controllers[i]->get_name(), "L1_I") != NULL) ||
+			(strstr(controllers[i]->get_name(), "L1_I_A") != NULL)) {
+			controllers[i]->dump_mcpat_configuration(&mcpatData, countl1i);
+			mcpatData.number_cache_levels = 1;
+			countl1i++;
+		}
+		if ((strstr(controllers[i]->get_name(), "L1_D") != NULL) ||
+			(strstr(controllers[i]->get_name(), "L1_D_A") != NULL)) {
+			controllers[i]->dump_mcpat_configuration(&mcpatData, countl1d);
+			mcpatData.number_cache_levels = 1;
+			countl1d++;
+		}
+		if (strstr(controllers[i]->get_name(), "L2") != NULL) {
+			mcpatData.L2[countl2].clockrate = mcpatData.target_core_clockrate;
+			mcpatData.number_of_L2s++;
+			mcpatData.number_cache_levels = 2;
+			if (controllers[i]->is_private())
+				mcpatData.Private_L2 = true;
+			else
+				mcpatData.Private_L2 = false;
+			controllers[i]->dump_mcpat_configuration(&mcpatData, countl2);
+			countl2++;
+		}
+		if (strstr(controllers[i]->get_name(), "global_dir") != NULL) {
+			mcpatData.homogeneous_L2Directories = 0;
+			mcpatData.L2Directory[l2dir].clockrate = mcpatData.target_core_clockrate;
+			controllers[i]->dump_mcpat_configuration(&mcpatData, l2dir);
+			l2dir++;
+			mcpatData.number_of_L2Directories = l2dir;
+			mcpatData.number_of_dir_levels = 1;
+		}
+		if (strstr(controllers[i]->get_name(), "L3") != NULL) {
+			mcpatData.L3[countl3].clockrate = mcpatData.target_core_clockrate;
+			mcpatData.number_cache_levels = 3;
+			mcpatData.number_of_L3s++;
+			controllers[i]->dump_mcpat_configuration(&mcpatData, countl3);
+			countl3++;
+		}
+
+		if (strstr(controllers[i]->get_name(), "MEM") != NULL) {
+			mcpatData.mc.number_mcs++;
+			controllers[i]->dump_mcpat_configuration(&mcpatData, countm);
+			countm++;
+		}
+	}
+
+	/* Now dump all interconnections */
+	foreach (i, interconnects.count()) {
+		interconnects[i]->dump_mcpat_configuration(&mcpatData, 0);
+	}
+
+	if (config.powerFileName) {
+		std::string name(config.powerFileName);
+		mcpat_set_config(&mcpatData, name);
+	} else {
+		std::string name("power.dat");
+		mcpat_set_config(&mcpatData, name);
+	}
+}
+
+void BaseMachine::dumpTraces()
+{
+	for (unsigned int i = 0; i < dataTrace.size(); i++) {
+		powerFile << dataTrace[i].power;
+		if (config.dumpVoltage) {
+			powerFile << " " << dataTrace[i].voltage;
+		}
+		powerFile << endl;
+	}
+	dataTrace.clear();
+}
+
+void BaseMachine::compute_power()
+{
+	ptl_logfile << "Gathering mcpat stats at cycle: " << sim_cycle << endl;
+	foreach (i, cores.count()) {
+		cores[i]->dump_mcpat_stats(&mcpatData, i);
+	}
+
+	int countl1i = 0, countl1d = 0, countl2 = 0, countl3 = 0, countm = 0;
+	foreach (i, controllers.count()) {
+		if (strstr(controllers[i]->get_name(), "L1_I") != NULL) {
+			controllers[i]->dump_mcpat_stats(&mcpatData, countl1i);
+			countl1i++;
+		}
+		if (strstr(controllers[i]->get_name(), "L1_D") != NULL) {
+			controllers[i]->dump_mcpat_stats(&mcpatData, countl1d);
+			countl1d++;
+		}	
+		if (strstr(controllers[i]->get_name(), "L2") != NULL) {
+			controllers[i]->dump_mcpat_stats(&mcpatData, countl2);
+			countl2++;
+		}	
+		if (strstr(controllers[i]->get_name(), "L3") != NULL) {
+			controllers[i]->dump_mcpat_stats(&mcpatData, countl3);
+			countl3++;
+		}	
+		if (strstr(controllers[i]->get_name(), "MEM") != NULL) {
+			controllers[i]->dump_mcpat_stats(&mcpatData, countm);
+			countm++;
+		}	
+	}
+#if 0
+	foreach (i, interconnects.count()) {
+		interconnects[i]->dump_mcpat_stats(&mcpatData, i);
+	} 
+
+#endif
+	if (config.dumpMcpatStats)
+		print_mcpat_stats(&mcpatData);
+
+	/* Compute per-cycle power consumed */
+	double power = mcpat_compute_percycle_power(&mcpatData);
+	double voltage = 0.0;
+#if 0
+	if (config.dumpVoltage) {
+	/* compute per-cycle voltage */
+		voltage = compute(power);
+	}
+#endif
+	struct data pv = {power, voltage};
+	dataTrace.push_back(pv);
+	if (dataTrace.size() >= 100000000) {
+		dumpTraces();
+	}
+}
+
 int BaseMachine::run(PTLsimConfig& config)
 {
+    static bool sim_cycle_local = false;
+
     if(logable(1))
         ptl_logfile << "Starting base core toplevel loop", endl, flush;
+
+    if(config.runMcPAT && !powerFile.is_open())
+	open_power_logfile();
 
     // All VCPUs are running:
     stopped = 0;
@@ -235,13 +447,19 @@ int BaseMachine::run(PTLsimConfig& config)
             cores[cur_core]->reset();
         }
         cores[cur_core]->check_ctx_changes();
+	if (!first_run && sim_cycle_local) { /* if it is not the first run, reset last cycle stats */
+//		cout << " calling reset... sim cyc local : " << sim_cycle_local << " global: " << sim_cycle << endl;
+		cores[cur_core]->reset_lastcycle_stats();
+	}	
     }
     first_run = 0;
 
     // Run each core
     bool exiting = false;
 
+//    cout << "1: starting " << endl;
     for (;;) {
+  //      cout << "2: repeating " << endl;
         if unlikely ((!logenable) &&
                 iterations >= config.start_log_at_iteration &&
                 !config.log_user_only) {
@@ -270,6 +488,8 @@ int BaseMachine::run(PTLsimConfig& config)
         memoryHierarchyPtr->clock();
         clock_qemu_io_events();
 
+//	cout << "signal array size: " << coremodel.per_cycle_signals.size() << endl;
+	sim_cycle_local = true;
 		foreach (i, coremodel.per_cycle_signals.size()) {
 			if (logable(4))
 				ptl_logfile << "Per-Cycle-Signal : " <<
@@ -277,12 +497,18 @@ int BaseMachine::run(PTLsimConfig& config)
 			exiting |= coremodel.per_cycle_signals[i]->emit(NULL);
 		}
 
+	sim_cycle_local = false;
         sim_cycle++;
         iterations++;
+
+	if (config.runMcPAT && config.powerPeriod && ((sim_cycle % config.powerPeriod) == 0) ) {
+		compute_power();
+	}
 
         if unlikely (config.stop_at_insns <= total_insns_committed ||
                 config.stop_at_cycle <= sim_cycle) {
             ptl_logfile << "Stopping simulation loop at specified limits (", sim_cycle, " cycles, ", total_insns_committed, " commits)", endl;
+
             exiting = 1;
             break;
         }
@@ -362,7 +588,9 @@ ConnectionDef* BaseMachine::get_new_connection_def(const char* interconnect,
 {
     ConnectionDef* conn = new ConnectionDef();
     conn->interconnect = interconnect;
+    cout << "get new conn name : " << name << endl;
     conn->name << name << id;
+    cout << "get new conn name with id : " << conn->name << endl;
     connections.push(conn);
     return conn;
 }
@@ -638,6 +866,7 @@ InterconnectBuilder::InterconnectBuilder(const char* name)
         interconnectBuilders = new Hashtable<const char*,
             InterconnectBuilder*, 1>();
     }
+    cout << "interconnect name: " << name << endl;
     interconnectBuilders->add(name, this);
 }
 
@@ -657,6 +886,7 @@ void InterconnectBuilder::create_new_int(BaseMachine& machine, W8 id,
         InterconnectBuilder::interconnectBuilders->get(int_name);
     assert(builder);
 
+    cout << " creating new interconn : " << int_name_t.buf << endl;
     Interconnect* interCon = (*builder)->get_new_interconnect(
             *machine.memoryHierarchyPtr, int_name_t.buf);
     machine.interconnects.push(interCon);

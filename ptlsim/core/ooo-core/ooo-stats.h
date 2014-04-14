@@ -176,6 +176,8 @@ namespace OOO_CORE_MODEL {
                 StatObj<W64> branch_mispredict;
                 StatObj<W64> exception;
                 StatObj<W64> complete;
+                StatObj<W64> ialu_accesses;
+                StatObj<W64> fpu_accesses;
 
                 result(Statable *parent)
                     : Statable("result", parent)
@@ -186,6 +188,8 @@ namespace OOO_CORE_MODEL {
                       , branch_mispredict("branch_mispredict", this)
                       , exception("exception", this)
                       , complete("complete", this)
+                      , ialu_accesses("ialu_accesses", this)
+                      , fpu_accesses("fpu_accesses", this)
                 {}
             } result;
 
@@ -220,6 +224,10 @@ namespace OOO_CORE_MODEL {
         {
             StatObj<W64> uops;
             StatObj<W64> insns;
+	    StatObj<W64> loads;
+	    StatObj<W64> stores;
+	    StatObj<W64> branch;
+	    StatObj<W64> fp;
             StatEquation<W64, double, StatObjFormulaDiv> uipc;
             StatEquation<W64, double, StatObjFormulaDiv> ipc;
 
@@ -303,6 +311,10 @@ namespace OOO_CORE_MODEL {
                 : Statable("commit", parent)
                   , uops("uops", this)
                   , insns("insns", this)
+                  , loads("loads", this)
+                  , stores("stores", this)
+                  , branch("branch", this)
+                  , fp("fp", this)
                   , uipc("uipc", this)
                   , ipc("ipc", this)
                   , result(this)
@@ -534,6 +546,8 @@ namespace OOO_CORE_MODEL {
 
 		StatObj<W64> rename_table_reads;
 		StatObj<W64> rename_table_writes;
+		StatObj<W64> rename_table_fp_reads;
+		StatObj<W64> rename_table_fp_writes;
 
 		StatObj<W64> reg_reads;
 		StatObj<W64> reg_writes;
@@ -563,6 +577,8 @@ namespace OOO_CORE_MODEL {
 			  , rob_writes("rob_writes", this)
 			  , rename_table_reads("rename_table_reads", this)
 			  , rename_table_writes("rename_table_writes", this)
+			  , rename_table_fp_reads("rename_table_fp_reads", this)
+			  , rename_table_fp_writes("rename_table_fp_writes", this)
 			  , reg_reads("reg_reads", this)
 			  , reg_writes("reg_writes", this)
 			  , fp_reg_reads("fp_reg_reads", this)

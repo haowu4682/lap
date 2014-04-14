@@ -40,6 +40,8 @@ static const unsigned dramsim_transaction_size = 64;
 #endif
 
 
+#include <mcpat.h>
+
 namespace Memory {
 
 struct MemoryQueueEntry : public FixStateListObject
@@ -87,6 +89,8 @@ class MemoryController : public Controller
 		int get_bank_id(W64 addr);
 
         RAMStats new_stats;
+	W64 accesses_user[MEM_BANKS], accesses_kernel[MEM_BANKS], reads_user[MEM_BANKS], reads_kernel[MEM_BANKS];
+	W64 writes_user[MEM_BANKS], writes_kernel[MEM_BANKS];
 
 	public:
 		MemoryController(W8 coreid, const char *name,
@@ -106,7 +110,10 @@ class MemoryController : public Controller
 		virtual bool wait_interconnect_cb(void *arg);
 
 		void annul_request(MemoryRequest *request);
+		virtual void reset_lastcycle_stats();
 		virtual void dump_configuration(YAML::Emitter &out) const;
+		virtual void dump_mcpat_configuration(root_system *mcpat, W32 core);
+		virtual void dump_mcpat_stats(root_system *mcpat, W32 core);
 
 		virtual int get_no_pending_request(W8 coreid);
 

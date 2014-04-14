@@ -38,6 +38,8 @@
 
 #include <statsBuilder.h>
 
+#include <mcpat.h>
+
 namespace Memory {
 
 enum CacheLineState {
@@ -180,6 +182,10 @@ class CacheController : public Controller
 
         // Stats Objects
         BaseCacheStats new_stats;
+	W64 readmiss_user, readmiss_kernel, readhit_user, readhit_kernel, writemiss_user, writemiss_kernel;
+        W64 writehit_user, writehit_kernel, stall_rdepend_user, stall_rdepend_kernel, stall_rcachep_user, stall_rcachep_kernel;
+        W64 stall_wdepend_user, stall_wdepend_kernel, stall_wcachep_user, stall_wcachep_kernel;
+        W64 stall_rbufferfull_user, stall_rbufferfull_kernel, stall_wbufferfull_user, stall_wbufferfull_kernel;
 
 		CacheQueueEntry* find_dependency(MemoryRequest *request);
 
@@ -211,7 +217,10 @@ class CacheController : public Controller
 				*interconnect);
 
 		void annul_request(MemoryRequest *request);
+		void reset_lastcycle_stats();
 		void dump_configuration(YAML::Emitter &out) const;
+		void dump_mcpat_configuration(root_system *mcpat, W32 coreid);
+		void dump_mcpat_stats(root_system *mcpat, W32 coreid);
 
 		// Callback functions for signals of cache
 		bool cache_hit_cb(void *arg);
@@ -233,6 +242,10 @@ class CacheController : public Controller
 
 		void set_wt_disable(bool flag) {
 			wt_disabled_ = flag;
+		}
+
+		bool get_wt_disable(void) {
+			return wt_disabled_;
 		}
 
 		void print(ostream& os) const;

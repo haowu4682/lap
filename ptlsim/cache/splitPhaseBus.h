@@ -30,6 +30,7 @@
 
 #include <interconnect.h>
 #include <memoryStats.h>
+#include <mcpat.h>
 
 namespace Memory {
 
@@ -143,6 +144,7 @@ class BusInterconnect : public Interconnect
 		Signal broadcastCompleted_;
 		Signal dataBroadcastCompleted_;
         BusStats *new_stats;
+	W64 reads_user, reads_kernel, writes_user, writes_kernel;
 
         int latency_;
         int arbitrate_latency_;
@@ -164,7 +166,10 @@ class BusInterconnect : public Interconnect
 				MemoryRequest *request);
 		void annul_request(MemoryRequest *request);
         void set_data_bus();
+		void reset_lastcycle_stats();
 		void dump_configuration(YAML::Emitter &out) const;
+		void dump_mcpat_configuration(root_system *mcpatData, W32 idx);
+		void dump_mcpat_stats(root_system *mcpatData, W32 idx);
 
 		// Bus delay in sending message is BUS_BROADCASTS_DELAY
 		int get_delay() {

@@ -29,6 +29,7 @@
 #define BUS_H
 
 #include <interconnect.h>
+#include <mcpat.h>
 
 namespace Memory {
 
@@ -99,7 +100,10 @@ class BusInterconnect : public Interconnect
 				MemoryRequest *request);
 		void print_map(ostream& os);
 		void annul_request(MemoryRequest *request);
+		void reset_lastcycle_stats() {}
 		void dump_configuration(YAML::Emitter &out) const;
+		void dump_mcpat_configuration(root_system *mcpatData, W32 idx);
+		void dump_mcpat_stats(root_system *mcpatData, W32 idx);
 
 		// Bus delay in sending message is BUS_BROADCASTS_DELAY
 		int get_delay() {

@@ -66,6 +66,12 @@ MemoryController::MemoryController(W8 coreid, const char *name,
 
 #endif
 
+    for (int i = 0; i < MEM_BANKS; i++) {
+	accesses_user[i] = accesses_kernel[i] = 0;
+	reads_user[i] = reads_kernel[i] = 0;
+	writes_user[i] = writes_kernel[i] = 0;
+    }
+
     /* Convert latency from ns to cycles */
     latency_ = ns_to_simcycles(latency_);
 
@@ -422,6 +428,66 @@ void MemoryController::dump_configuration(YAML::Emitter &out) const
 	YAML_KEY_VAL(out, "pending_queue_size", pendingRequests_.size());
 
 	out << YAML::EndMap;
+}
+
+void MemoryController::reset_lastcycle_stats()
+{
+	for (int  i = 0; i < MEM_BANKS; i++) {
+		*(new_stats.bank_access)(user_stats) = accesses_user[i];
+		*(new_stats.bank_access)(kernel_stats) = accesses_kernel[i];
+		*(new_stats.bank_read)(user_stats) = reads_user[i];
+		*(new_stats.bank_read)(kernel_stats) = reads_kernel[i];
+		*(new_stats.bank_write)(user_stats) = writes_user[i];
+		*(new_stats.bank_write)(kernel_stats) = writes_kernel[i];
+	}
+}
+
+void MemoryController::dump_mcpat_configuration(root_system *mcpat, W32 core)
+{
+	mcpat->mem.num_banks_of_DRAM_chip = MEM_BANKS;
+	mcpat->mem.number_ranks = MEM_BANKS / 8;
+	mcpat->mem.internal_prefetch_of_DRAM_chip = 4;
+	mcpat->mem.burstlength_of_DRAM_chip = 8;
+	mcpat->mem.output_width_of_DRAM_chip = 8;
+	mcpat->mem.Block_width_of_DRAM_chip = 64;
+	mcpat->mem.peak_transfer_rate = 6400;
+	mcpat->mem.page_size_of_DRAM_chip = 8;
+	mcpat->mem.capacity_per_channel = ram_size / 2;
+	mcpat->mem.device_clock = 200;
+	mcpat->mem.mem_tech_node = 65;
+}
+
+void MemoryController::dump_mcpat_stats(root_system *mcpat, W32 core)
+{
+	W64 accesses = 0, reads = 0, writes = 0, stored_accesses = 0, stored_reads = 0, stored_writes = 0;
+	W64 acc_user[MEM_BANKS], acc_kernel[MEM_BANKS], rds_user[MEM_BANKS], rds_kernel[MEM_BANKS];
+	W64 wrs_user[MEM_BANKS], wrs_kernel[MEM_BANKS];
+
+	for (int  i = 0; i < MEM_BANKS; i++) {
+		acc_user[i] = *(new_stats.bank_access)(user_stats);
+		acc_kernel[i] = *(new_stats.bank_access)(kernel_stats);
+		rds_user[i] = *(new_stats.bank_read)(user_stats); 
+		rds_kernel[i] = *(new_stats.bank_read)(kernel_stats); 
+		wrs_user[i] = *(new_stats.bank_write)(user_stats); 
+		wrs_kernel[i] = *(new_stats.bank_write)(kernel_stats); 
+		accesses += acc_user[i] + acc_kernel[i];
+		reads += rds_user[i] + rds_kernel[i];
+		writes += wrs_user[i] + wrs_kernel[i];
+		stored_accesses += accesses_user[i] + accesses_kernel[i];
+		stored_reads += rds_user[i] + rds_kernel[i];
+		stored_writes += wrs_user[i] + wrs_kernel[i];
+	}
+	mcpat->mc.memory_accesses = accesses - stored_accesses;
+	mcpat->mc.memory_reads = reads - stored_reads;
+	mcpat->mc.memory_writes = writes - stored_writes;
+	for (int  i = 0; i < MEM_BANKS; i++) {
+		accesses_user[i] = acc_user[i];
+		accesses_kernel[i] = acc_kernel[i];
+		reads_user[i] = rds_user[i];
+		reads_kernel[i] = rds_kernel[i];
+		writes_user[i] = wrs_user[i];
+		writes_kernel[i] = wrs_kernel[i];
+	}
 }
 
 /* Memory Controller Builder */

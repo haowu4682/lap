@@ -22,6 +22,7 @@
 #define INVALID_MFN 0xffffffffffffffffULL
 #define INVALID_PHYSADDR 0xffffffffffffffffULL
 
+#define POWER_PERIOD 0
 #define contextcount smp_cpus
 
 void user_process_terminated(int rc);
@@ -61,7 +62,13 @@ struct PTLsimMachine : public Statable {
   virtual void dump_state(ostream& os);
   virtual void flush_tlb(Context& ctx);
   virtual void flush_tlb_virt(Context& ctx, Waddr virtaddr);
+//  virtual void reset_lastcycle_stats();
   virtual void dump_configuration(ostream& os) const;
+  virtual void dump_mcpat_configuration();
+  virtual void dump_machine_area();
+  virtual void dump_machine_tdp();
+  virtual void dumpTraces();
+  virtual void compute_power();
   virtual void reset(){};
 #ifdef DRAMSIM
   virtual void simulation_done();
@@ -143,6 +150,8 @@ void print_sysinfo(ostream& os);
 void backup_and_reopen_logfile();
 void backup_and_reopen_mem_logfile();
 void backup_and_reopen_yamlstats();
+void open_power_logfile();
+void flush_power_logfile();
 void shutdown_subsystems();
 
 bool simulate(const char* machinename);
@@ -167,12 +176,15 @@ struct PTLsimStats;
 
 extern ofstream ptl_logfile;
 extern ofstream trace_mem_logfile;
+extern ofstream powerFile;
+extern ofstream statsFile;
 extern W64 sim_cycle;
 extern W64 user_insn_commits;
 extern W64 iterations;
 extern W64 total_uops_executed;
 extern W64 total_uops_committed;
 extern W64 total_insns_committed;
+extern W64 total_user_insns_committed;
 extern W64 total_basic_blocks_committed;
 
 // #define TRACE_RIP
@@ -297,6 +309,16 @@ struct PTLsimConfig {
   stringbuf dramsim_pwd;
   stringbuf dramsim_results_dir_name;
 #endif
+
+  // Gather per-cycle Power
+  bool runMcPAT;
+  W64 powerPeriod;
+  bool dumpMcpatStats;
+  bool dumpVoltage;
+  bool dumpArea;
+  bool dumpTDP;
+  stringbuf powerFileName;
+  W64 core_tech;
 
   void reset();
 

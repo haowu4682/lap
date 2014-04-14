@@ -34,6 +34,8 @@
 #include <memoryStats.h>
 //#include <logic.h>
 
+#include <mcpat.h>
+
 namespace Memory {
 
 struct CPUControllerQueueEntry : public FixStateListObject
@@ -153,7 +155,10 @@ class CPUController : public Controller
 		bool is_cache_availabe(bool is_icache);
 		void annul_request(MemoryRequest *request);
 		int flush();
+		void reset_lastcycle_stats() {}
 		void dump_configuration(YAML::Emitter &out) const;
+		void dump_mcpat_configuration(root_system *mcpat, W32 core);
+		void dump_mcpat_stats(root_system *mcpat, W32 core);
 
         void set_icacheLineBits(int i) {
             icacheLineBits_ = i;

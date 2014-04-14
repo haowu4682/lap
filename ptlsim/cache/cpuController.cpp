@@ -512,6 +512,14 @@ has no relevence to any hardware module.\n");
 	out << YAML::EndMap;
 }
 
+void CPUController::dump_mcpat_configuration(root_system *mcpat, W32 core)
+{
+}
+
+void CPUController::dump_mcpat_stats(root_system *mcpat, W32 core)
+{
+}
+
 /* CPU Controller Builder */
 struct CPUControllerBuilder : public ControllerBuilder
 {

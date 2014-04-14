@@ -174,6 +174,15 @@ void P2PInterconnect::dump_configuration(YAML::Emitter &out) const
 	out << YAML::EndMap;
 }
 
+void P2PInterconnect::dump_mcpat_configuration(root_system *mcpatData, W32 idx)
+{
+}
+
+void P2PInterconnect::dump_mcpat_stats(root_system *mcpatData, W32 idx)
+{
+}
+
+
 /**
  * @brief P2P Interconnect Builder to export P2P interconnect to machine
  *

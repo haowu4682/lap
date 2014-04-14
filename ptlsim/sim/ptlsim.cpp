@@ -54,6 +54,8 @@ ofstream ptl_rip_trace;
 #endif
 ofstream trace_mem_logfile;
 ofstream yaml_stats_file;
+ofstream powerFile;
+
 bool logenable = 0;
 W64 sim_cycle = 0;
 W64 unhalted_cycle_count = 0;
@@ -61,6 +63,7 @@ W64 iterations = 0;
 W64 total_uops_executed = 0;
 W64 total_uops_committed = 0;
 W64 total_insns_committed = 0;
+W64 total_user_insns_committed = 0;
 W64 total_basic_blocks_committed = 0;
 
 W64 last_printed_status_at_ticks;
@@ -251,6 +254,14 @@ void ConfigurationParser<PTLsimConfig>::reset() {
   dramsim_results_dir_name = "MARSS";
 #endif
 
+  runMcPAT = false;
+  powerPeriod = POWER_PERIOD;
+  dumpMcpatStats = false;
+  dumpVoltage = false;
+  dumpArea = false;
+  dumpTDP = false;
+  powerFileName = "power.dat";
+  core_tech = 65;
 }
 
 template <>
@@ -364,6 +375,16 @@ void ConfigurationParser<PTLsimConfig>::setup() {
   add(dramsim_system_ini_file,  "dramsim-system-ini-file",   "System ini file that DRAMSim2 should load"); 
   add(dramsim_results_dir_name, "dramsim-results-dir-name",  "Name of the results directory where the DRAMSim2 output should go"); 
 #endif
+
+  section("Power Measurements");
+  add(runMcPAT,                 "enable-mcpat",             "Run McPAT to obtain per-cycle power consumption");
+  add(powerPeriod,             "power-period",         "How often to dump power information (in terms of # cycles) ?");
+  add(dumpArea,                 "dump-area",             "Run McPAT to obtain area estimation");
+  add(dumpTDP,                 "dump-tdp",             "Run McPAT to obtain TDP estimation");
+  add(dumpMcpatStats,           "dump-mcpat-stats",             "Dump per-cycle stats being fed into McPAT");
+  add(dumpVoltage,           "dump-voltage",             "Dump per-cycle voltage");
+  add(powerFileName,            "powerfile",              "Log filename for dumping Power numbers");
+  add(core_tech,            "core-tech",              "Core technology");
 };
 
 #ifndef CONFIG_ONLY
@@ -438,6 +459,13 @@ void backup_and_reopen_logfile() {
   }
 }
 
+void open_power_logfile() {
+    if (config.powerFileName)
+	powerFile.open(config.powerFileName);
+    else
+	powerFile.open("power.dat");
+}
+
 void backup_and_reopen_yamlstats() {
   if (config.yaml_stats_filename) {
     if (yaml_stats_file) yaml_stats_file.close();
@@ -504,6 +532,12 @@ void dump_text_stats()
 	(StatsBuilder::get()).dump(global_stats, yaml_stats_file, "total.");
 
 	yaml_stats_file.flush();
+}
+
+void flush_power_logfile()
+{
+    powerFile.flush();
+    powerFile.close();
 }
 
 static void flush_stats()
@@ -807,6 +841,12 @@ void PTLsimMachine::dump_state(ostream& os) { return; }
 void PTLsimMachine::flush_tlb(Context& ctx) { return; }
 void PTLsimMachine::flush_tlb_virt(Context& ctx, Waddr virtaddr) { return; }
 void PTLsimMachine::dump_configuration(ostream& os) const { return; }
+void PTLsimMachine::dump_mcpat_configuration() { return; }
+void PTLsimMachine::dump_machine_area() { return; }
+void PTLsimMachine::dump_machine_tdp() { return; }
+void PTLsimMachine::dumpTraces() { return; }
+void PTLsimMachine::compute_power() { return; }
+//void PTLsimMachine::reset_lastcycle_stats() { return; }
 
 void PTLsimMachine::addmachine(const char* name, PTLsimMachine* machine) {
   if unlikely (!machinetable) {
@@ -1290,6 +1330,21 @@ static void dump_machine_configuration(PTLsimMachine *machine)
 	}
 }
 
+static void dump_mcpat_configuration(PTLsimMachine *machine)
+{
+	machine->dump_mcpat_configuration();
+}
+
+static void dump_machine_area(PTLsimMachine *machine)
+{
+	machine->dump_machine_area();
+}
+
+static void dump_machine_tdp(PTLsimMachine *machine)
+{
+	machine->dump_machine_tdp();
+}
+
 extern "C" uint8_t ptl_simulate() {
 	PTLsimMachine* machine = NULL;
 	char* machinename = config.core_name;
@@ -1329,6 +1384,19 @@ extern "C" uint8_t ptl_simulate() {
 
 		/* Dump Machine configuration */
 		dump_machine_configuration(machine);
+
+		if (config.runMcPAT) {
+			dump_mcpat_configuration(machine);
+#if 0
+			if (config.dumpVoltage) {
+		/* Initialize the voltage model */
+			}
+#endif
+			if (config.dumpArea)
+				dump_machine_area(machine);
+			if (config.dumpTDP)
+				dump_machine_tdp(machine);
+		}
 
 		/* Update stats every half second: */
 		ticks_per_update = seconds_to_native_ticks(0.2);
@@ -1399,7 +1467,10 @@ extern "C" uint8_t ptl_simulate() {
 #ifdef ENABLE_GPERF
     ProfilerStart("marss.prof");
 #endif
+
+//        cout << "1. Running the simulator, cycle: " << sim_cycle << endl;
 	machine->run(config);
+//        cout << "2. came out of simulation " << endl;
 
 	if (config.stop_at_insns <= total_insns_committed || config.kill == true
 			|| config.stop == true || config.stop_at_cycle < sim_cycle) {
@@ -1419,7 +1490,6 @@ extern "C" uint8_t ptl_simulate() {
             ptl_logfile << " sim_cycle: " << sim_cycle;
             ptl_logfile << endl << flush;
         }
-
 		/* Tell QEMU that we will come back to simulate */
 		return 1;
 	}
@@ -1433,6 +1503,12 @@ extern "C" uint8_t ptl_simulate() {
 	sb << endl << "Stopped after " << sim_cycle << " cycles, " << total_insns_committed << " instructions and " <<
 	   seconds << " seconds of sim time (cycle/sec: " << W64(double(sim_cycle) / double(seconds)) << " Hz, insns/sec: " << 
        W64(double(total_insns_committed) / double(seconds)) << ", insns/cyc: " <<  double(total_insns_committed) / double(sim_cycle) << ")" << endl;
+
+       if (config.runMcPAT) {
+               if (config.powerPeriod == 0)
+                       machine->compute_power();
+               machine->dumpTraces();
+       }
 
 	ptl_logfile << sb << flush;
 	cerr << sb << flush;
@@ -1451,10 +1527,17 @@ extern "C" uint8_t ptl_simulate() {
 	cerr << endl;
 
     flush_stats();
+    if (config.runMcPAT) {
+        flush_power_logfile();
+#if 0
+	if (config.dumpVoltage)
+	/* If using voltage model, de-initialize it */
+#endif
+    }
 
-	if(config.kill || config.kill_after_run) {
+    if(config.kill || config.kill_after_run) {
         kill_simulation();
-	}
+    }
 
     machine->first_run = 1;
     sim_update_clock_offset = 1;

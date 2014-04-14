@@ -29,6 +29,7 @@
 #define INTERCONNECT_H
 
 #include <controller.h>
+#include <mcpat.h>
 
 namespace Memory {
 
@@ -71,7 +72,10 @@ class Interconnect
 		virtual void print(ostream& os) const = 0;
 		virtual int get_delay()=0;
 		virtual void annul_request(MemoryRequest* request) = 0;
+		virtual void reset_lastcycle_stats() = 0;
 		virtual void dump_configuration(YAML::Emitter &out) const = 0;
+		virtual void dump_mcpat_configuration(root_system *mcpatData, W32 idx) = 0;
+		virtual void dump_mcpat_stats(root_system *mcpatData, W32 idx) = 0;
 		virtual bool is_empty() const = 0;
 
 		Signal* get_controller_request_signal() {

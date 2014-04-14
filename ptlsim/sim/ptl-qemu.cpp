@@ -736,6 +736,8 @@ void Context::update_mode_count() {
 }
 
 void Context::update_mode(bool is_kernel) {
+    if (kernel_mode != is_kernel)
+	switches++;
     kernel_mode = is_kernel;
     if(config.log_user_only) {
         if(kernel_mode)

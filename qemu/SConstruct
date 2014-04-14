@@ -12,7 +12,6 @@ import subprocess
 import re
 env = qemu_env
 target = qemu_target
-
 target_base_arch = "%s" % target['arch']
 if target_base_arch == "x86_64":
     target_base_arch = "i386"
@@ -24,6 +23,7 @@ env['CPPPATH'] = []
 env['CPPPATH'].append([".", "..", target_path, env['source_path']])
 env['CPPPATH'].append(target['dir'])
 env['CPPPATH'].append(ptlsim_inc_dir)
+print("ptlsim inc dir %s" % ptlsim_inc_dir)
 env.Append(CCFLAGS = "-MMD -MP -DNEED_CPU_H")
 env.Append(CCFLAGS = "-DMARSS_QEMU")
 
@@ -82,6 +82,8 @@ if target['arch'] == "i386":
 env.Append(CPPFLAGS = "-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 \
         -D_LARGEFILE_SOURCE")
 env.Append(LIBS = "m")
+env.Append(LIBPATH = "/scratch/cluster/haowu/lap/patches/mcpat")
+env.Append(LIBS = "mcpat")
 
 #######################
 # QObject

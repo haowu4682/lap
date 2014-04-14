@@ -814,6 +814,7 @@ struct Context: public CPUX86State {
   W64 insns_at_last_mode_switch;
   W64 user_instructions_commited;
   W64 kernel_instructions_commited;
+  W64 switches;
   W64 exception;
   W64 reg_trace;
   W64 reg_selfrip;
@@ -986,7 +987,7 @@ struct Context: public CPUX86State {
 
   void init();
 
-  Context() : invalid_reg(-1), reg_zero(0), reg_ctx((Waddr)this) { }
+  Context() : switches(0), invalid_reg(-1), reg_zero(0), reg_ctx((Waddr)this) { }
 
   W64 virt_to_pte_phys_addr(Waddr virtaddr, byte& level);
 

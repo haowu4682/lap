@@ -23,6 +23,8 @@
 #include <ooo-const.h>
 #include <ooo-stats.h>
 
+#include <mcpat.h>
+
 /* With these disabled, simulation is faster */
 #define ENABLE_CHECKS
 #define ENABLE_LOGGING
@@ -958,6 +960,21 @@ namespace OOO_CORE_MODEL {
 
         PTLsimStats *stats_;
 
+	W64 total_user, total_kernel, total_integer, total_fp, idle[2], total_committed_insns;
+	W64 st_user, st_kernel, ld_user, ld_kernel, br_user, br_kernel;
+	W64 robreads_user, robreads_kernel, robwrites_user, robwrites_kernel;
+	W64 rnreads_user, rnreads_kernel, rnwrites_user, rnwrites_kernel;
+	W64 fp_rnreads_user, fp_rnreads_kernel, fp_rnwrites_user, fp_rnwrites_kernel;
+	W64 misspreds_user, misspreds_kernel;
+	W64 fpregreads_user, fpregreads_kernel, fpregwrites_user, fpregwrites_kernel;
+	W64 predictions[2], contexts_user, contexts_kernel, itbhits_user, itbhits_kernel;
+	W64 ialu_user, ialu_kernel, fpu_user, fpu_kernel, mul;
+	W64 itbmisses_user, itbmisses_kernel;
+	W64 dtbmisses_user, dtbmisses_kernel, dtbhits_user, dtbhits_kernel;
+	W64 total_insns, load, store, branch, issuefp, issue_integer;
+	W64 intregreads_user, intregreads_kernel, intregwrites_user, intregwrites_kernel;
+	W64 issue_user[OPCLASS_COUNT], issue_kernel[OPCLASS_COUNT], commit_user[OPCLASS_COUNT], commit_kernel[OPCLASS_COUNT];
+
         W8 threadid;
         W8 coreid;
         Context& ctx;
@@ -1286,12 +1303,24 @@ namespace OOO_CORE_MODEL {
 
 		/* Stats */
         OooCoreStats core_stats;
+	/* Variables needed for dump_mcpat_stats */
+	W64 cycles_user, cycles_kernel, st_insns[2], iq_reads_kernel, iq_reads_user, iq_writes_user, iq_writes_kernel;
+	W64 iq_fp_reads_user, iq_fp_reads_kernel, iq_fp_writes_user, iq_fp_writes_kernel;
+	W64 core_idle[2], rob_reads[2], rob_writes[2], rename_reads[2], rename_writes[2];
+	W64 fp_rename_reads[2], fp_rename_writes[2], mispreds[2], total_instructions[2];
+	W64 int_reg_reads[2], int_reg_writes[2], fp_reg_reads[2], fp_reg_writes[2];
+	W64 cntxt[2], predictor[2], itb_hits[2], itb_misses[2], dtb_accesses[2], dtb_misses[2];
+	W64 ld_insns[2], br_insns[2], fp_insns[2], int_insns[2];
+	W64 total_committed_instructions[2], committed_fp_insns[2], committed_int_insns[2];
 
         void update_stats();
 
         void check_ctx_changes();
 
-		void dump_configuration(YAML::Emitter &out) const;
+	void reset_lastcycle_stats();
+	void dump_configuration(YAML::Emitter &out) const;
+	void dump_mcpat_configuration(system_core *mcpatCore);
+	void dump_mcpat_stats(root_system *mcpatData, W32 core);
     };
 
     /**
@@ -1371,7 +1400,7 @@ namespace OOO_CORE_MODEL {
         BaseCore* get_new_core(BaseMachine& machine, const char* name);
     };
 };
-
+#if 0
 #undef ALU0
 #undef ALU1
 #undef ALU2
@@ -1398,5 +1427,5 @@ namespace OOO_CORE_MODEL {
 #undef ANYFPU
 #undef ANYINT
 #undef ALLFU
-
+#endif
 #endif /* _OOOCORE_H_ */

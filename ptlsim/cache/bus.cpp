@@ -291,6 +291,14 @@ void BusInterconnect::dump_configuration(YAML::Emitter &out) const
 	out << YAML::EndMap;
 }
 
+void BusInterconnect::dump_mcpat_configuration(root_system *mcpatData, W32 idx)
+{
+}
+
+void BusInterconnect::dump_mcpat_stats(root_system *mcpatData, W32 idx)
+{
+}
+
 struct BusBuilder : public InterconnectBuilder
 {
     BusBuilder(const char* name) :

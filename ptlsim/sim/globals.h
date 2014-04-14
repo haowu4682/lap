@@ -247,6 +247,8 @@ static inline bool fits_in_signed_32bit(W64s v) { return fits_in_signed_nbit(v, 
 #define assignbit(x, i, v) ((x) = (((x) &= (W64)(~(1LL << (i)))) | (((W64)((bool)(v))) << i)));
 
 #define foreach(i, n) for (int i = 0; i < (n); i++)
+#define foreachij(i, n1, n2) for (int i = (n1); i < (n2); i++)
+
 
 static inline W64s signext64(W64s x, const int i) { return (x << (64-i)) >> (64-i); }
 static inline W32s signext32(W32s x, const int i) { return (x << (32-i)) >> (32-i); }

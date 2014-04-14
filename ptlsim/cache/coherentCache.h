@@ -37,6 +37,8 @@
 #include <statsBuilder.h>
 #include <cacheLines.h>
 
+#include <mcpat.h>
+
 namespace Memory {
 
     namespace CoherentCache {
@@ -202,6 +204,13 @@ namespace Memory {
 
                 // Stats Objects
                 MESIStats *new_stats;
+		W64 readaccesses, readmisses, conflicts, writeaccesses, writemisses;
+	W64 readmiss_user, readmiss_kernel, readhit_user, readhit_kernel, writemiss_user, writemiss_kernel;
+	W64 readhit_forward_user, readhit_forward_kernel;
+	W64 writehit_forward_user, writehit_forward_kernel;
+        W64 writehit_user, writehit_kernel, stall_rdepend_user, stall_rdepend_kernel, stall_rcachep_user, stall_rcachep_kernel;
+        W64 stall_wdepend_user, stall_wdepend_kernel, stall_wcachep_user, stall_wcachep_kernel;
+        W64 stall_rbufferfull_user, stall_rbufferfull_kernel, stall_wbufferfull_user, stall_wbufferfull_kernel;
 
                 CoherenceLogic *coherence_logic_;
 
@@ -277,7 +286,10 @@ namespace Memory {
                 }
 
                 void annul_request(MemoryRequest *request);
-				void dump_configuration(YAML::Emitter &out) const;
+		void reset_lastcycle_stats();
+		void dump_configuration(YAML::Emitter &out) const;
+		void dump_mcpat_configuration(root_system *mcpat, W32 core);
+		void dump_mcpat_stats(root_system *mcpat, W32 core);
 
                 // Callback functions for signals of cache
                 virtual bool cache_hit_cb(void *arg);

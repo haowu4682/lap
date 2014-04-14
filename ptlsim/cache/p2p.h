@@ -29,6 +29,7 @@
 #define P2P_INTERCONNECT_H
 
 #include <interconnect.h>
+#include <mcpat.h>
 
 namespace Memory {
 
@@ -93,7 +94,10 @@ class P2PInterconnect : public Interconnect
 		void annul_request(MemoryRequest *request) {
 		}
 
+		void reset_lastcycle_stats() {}
 		void dump_configuration(YAML::Emitter &out) const;
+		void dump_mcpat_configuration(root_system *mcpatData, W32 idx);
+		void dump_mcpat_stats(root_system *mcpatData, W32 idx);
 
 		bool is_empty() const {
 			return true;

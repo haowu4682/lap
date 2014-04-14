@@ -50,6 +50,8 @@ BusInterconnect::BusInterconnect(const char *name,
     memoryHierarchy_->add_interconnect(this);
     new_stats = new BusStats(name, &memoryHierarchy->get_machine());
 
+    reads_user = reads_kernel = writes_user = writes_kernel = 0;
+
     SET_SIGNAL_CB(name, "_Broadcast", broadcast_, &BusInterconnect::broadcast_cb);
 
     SET_SIGNAL_CB(name, "_Broadcast_Complete", broadcastCompleted_,
@@ -569,6 +571,51 @@ void BusInterconnect::dump_configuration(YAML::Emitter &out) const
 				controllers[0]->queue.size());
 
 	out << YAML::EndMap;
+}
+
+void BusInterconnect::reset_lastcycle_stats()
+{
+	new_stats->broadcast_cycles.read(user_stats) = reads_user;
+	new_stats->broadcast_cycles.read(kernel_stats) = reads_kernel;
+	new_stats->broadcast_cycles.write(user_stats) = writes_user;
+        new_stats->broadcast_cycles.write(kernel_stats) = writes_kernel;
+}
+
+void BusInterconnect::dump_mcpat_configuration(root_system *mcpatData, W32 count)
+{
+	int idx = mcpatData->number_of_NoCs;
+	system_NoC *noc = &(mcpatData->NoC[idx]);
+	noc->clockrate = mcpatData->target_core_clockrate;
+	noc->type = 0;
+	noc->input_ports = 1;
+	noc->output_ports = 1;
+	noc->duty_cycle = 1;
+	noc->has_global_link = false;
+	noc->link_latency = latency_ * mcpatData->target_core_clockrate;	
+	noc->link_throughput = 1;
+	noc->input_buffer_entries_per_vc = controllers[0]->queue.size();
+	noc->flit_bits = 256;
+	mcpatData->number_of_NoCs++;
+	double coverage = 1.0/mcpatData->number_of_NoCs;
+	for (int i = 0; i < mcpatData->number_of_NoCs; i++) {
+		system_NoC *n = &(mcpatData->NoC[i]);
+		n->chip_coverage = coverage;
+	}
+	cout << " num noc: " << mcpatData->number_of_NoCs << " noc chip coverage: " << noc->chip_coverage << endl;
+}
+
+void BusInterconnect::dump_mcpat_stats(root_system *mcpatData, W32 idx)
+{
+	system_NoC *noc = &(mcpatData->NoC[idx]);
+	W64 ruser = new_stats->broadcast_cycles.read(user_stats);
+	W64 rkernel = new_stats->broadcast_cycles.read(kernel_stats);
+	W64 wuser = new_stats->broadcast_cycles.write(user_stats);
+        W64 wkernel = new_stats->broadcast_cycles.write(kernel_stats);
+	noc->total_accesses = (ruser + rkernel + wuser + wkernel) - (reads_user + reads_kernel + writes_user + writes_kernel);
+	reads_user = ruser;
+	reads_kernel = rkernel;
+	writes_user = writes_user;
+	writes_kernel = writes_kernel;
 }
 
 struct SplitPhaseBusBuilder : public InterconnectBuilder

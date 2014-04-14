@@ -19,6 +19,8 @@
 
 #include <machine.h>
 
+#include <mcpat.h>
+
 using namespace Memory;
 
 #define DIR_SET 4096
@@ -190,7 +192,10 @@ class DirectoryController : public Controller {
         void print(ostream &os) const;
         bool is_full(bool flag=false, MemoryRequest *request = NULL) const;
         void annul_request(MemoryRequest *request);
-		void dump_configuration(YAML::Emitter &out) const;
+	void reset_lastcycle_stats() {}
+	void dump_configuration(YAML::Emitter &out) const;
+	void dump_mcpat_configuration(root_system *mcpat, W32 core);
+	void dump_mcpat_stats(root_system *mcpat, W32 core);
 
         bool handle_read_miss(Message *message);
         bool handle_write_miss(Message *message);

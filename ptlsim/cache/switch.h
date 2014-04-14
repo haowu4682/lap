@@ -143,7 +143,10 @@ namespace SwitchInterconnect {
                     MemoryRequest *request);
             void annul_request(MemoryRequest *request);
             int  get_delay() { return latency_; }
-			void dump_configuration(YAML::Emitter &out) const;
+	    void reset_lastcycle_stats() {}
+	    void dump_configuration(YAML::Emitter &out) const;
+	    void dump_mcpat_configuration(root_system *mcpatData, W32 idx) {}
+	    void dump_mcpat_stats(root_system *mcpatData, W32 idx) {}
 
             ControllerQueue* get_queue(Controller *cont);
 

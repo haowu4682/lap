@@ -32,6 +32,8 @@
 #include <superstl.h>
 #include <memoryRequest.h>
 
+#include <mcpat.h>
+
 namespace Memory {
 
 class Interconnect;
@@ -117,7 +119,10 @@ class Controller
 		virtual void print(ostream& os) const =0;
 		virtual bool is_full(bool fromInterconnect = false, MemoryRequest *request = NULL) const = 0;
 		virtual void annul_request(MemoryRequest* request) = 0;
+		virtual void reset_lastcycle_stats() = 0;
 		virtual void dump_configuration(YAML::Emitter &out) const = 0;
+		virtual void dump_mcpat_configuration(root_system *mcpat, W32 core) = 0;
+		virtual void dump_mcpat_stats(root_system *mcpat, W32 core) = 0;
 		virtual bool is_empty() const = 0;
 
 		int flush() {
