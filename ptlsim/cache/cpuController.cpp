@@ -175,7 +175,7 @@ int CPUController::access_fast_path(Interconnect *interconnect,
 	}
 
     //if (request->get_coreid() == 1)
-    //    printf("fastPathLat = %d\n", fastPathLat);
+     //   printf("fastPathLat = %d\n", fastPathLat);
     if unlikely (fastPathLat == 0)
 		return 0;
 
