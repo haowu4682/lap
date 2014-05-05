@@ -352,6 +352,7 @@ void BaseMachine::dump_mcpat_configuration()
 
 void BaseMachine::dumpTraces()
 {
+#if 0
 	for (unsigned int i = 0; i < dataTrace.size(); i++) {
 		powerFile << dataTrace[i].power;
 		if (config.dumpVoltage) {
@@ -360,6 +361,7 @@ void BaseMachine::dumpTraces()
 		powerFile << endl;
 	}
 	dataTrace.clear();
+#endif
 }
 
 void BaseMachine::compute_power()
