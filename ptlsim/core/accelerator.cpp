@@ -16,7 +16,7 @@ using namespace Memory;
 
 uint64_t lap_mmio_reg;
 uint64_t lap_buf_addr;
-#define LAP_MMIO_ADDR 0x120000000
+#define LAP_MMIO_ADDR 0x200000000
 
 uint64_t cal_cycle_count;
 uint64_t max_cal_cycle;
@@ -174,12 +174,17 @@ bool Accelerator::do_load_content(void *nothing)
     return true;
 }
 
-#define MAX_SIZE_IN_TEST 250000
-#define BLOCK_ROW_SIZE 250
-#define BLOCK_COLUMN_SIZE 250
-#define BLOCK_ROW_COUNT 2
-#define BLOCK_COLUMN_COUNT 2
+#define MAX_SIZE_IN_TEST 100000000
+#define BLOCK_ROW_SIZE 32
+#define BLOCK_COLUMN_SIZE 32
+#define BLOCK_ROW_COUNT 16
+#define BLOCK_COLUMN_COUNT 16
 #define MAX_REQUEST_COUNT 32
+
+#define MEM_REQ_SIZE 64
+#define MEM_REQ_COUNT 16
+
+
 int row_count;
 int column_count;
 int block_count;
@@ -203,10 +208,10 @@ bool Accelerator::do_load_content_block_major(void *nothing)
 
     //printf("Inside Load Content Block Major.\n");
     // Block-based seek
-    for (int i = 0; i < BLOCK_ROW_SIZE * BLOCK_COLUMN_SIZE; ++i) {
+    for (int i = 0; i < BLOCK_ROW_SIZE * BLOCK_COLUMN_SIZE / MEM_REQ_COUNT; ++i) {
         // Calculate block count
-        W64 row_offset = (block_count / BLOCK_COLUMN_COUNT) * BLOCK_ROW_SIZE + i / BLOCK_COLUMN_SIZE;
-        W64 column_offset = (block_count % BLOCK_COLUMN_COUNT) * BLOCK_COLUMN_SIZE + i % BLOCK_COLUMN_SIZE;
+        W64 row_offset = (block_count / BLOCK_COLUMN_COUNT) * BLOCK_ROW_SIZE + i / (BLOCK_COLUMN_SIZE/MEM_REQ_COUNT);
+        W64 column_offset = (block_count % BLOCK_COLUMN_COUNT) * BLOCK_COLUMN_SIZE + i % (BLOCK_COLUMN_SIZE/MEM_REQ_COUNT) * MEM_REQ_COUNT;
         offset = (row_offset*matrix_header.n+column_offset) * sizeof(int);
         cur_virt_addr = base_virt_addr + offset;
         cur_phys_addr = base_phys_addr + offset;
@@ -228,7 +233,7 @@ bool Accelerator::do_load_content_block_major(void *nothing)
         if unlikely (!requested[i] && request_count < MAX_REQUEST_COUNT) {
             rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
                     temp_uuid, false, 3);
-            //printf("FIRST ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
+            printf("FIRST ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
             requested[i] = true;
             if (rc == ACCESS_OK) {
                 matrix_data_buf[offset] = data;
@@ -241,15 +246,15 @@ bool Accelerator::do_load_content_block_major(void *nothing)
             rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
                     temp_uuid, true, 3);
             matrix_data_buf[offset] = data;
-            //printf("SECOND ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
+            printf("SECOND ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
             ++wait_count;
             cache_ready_map[cur_phys_addr] = false;
             --request_count;
         }
     }
 
-    if unlikely (wait_count >= BLOCK_ROW_SIZE * BLOCK_COLUMN_SIZE) {
-        printf("Wait_count = %d\n", wait_count);
+    if unlikely (wait_count >= BLOCK_ROW_SIZE * BLOCK_COLUMN_SIZE/MEM_REQ_COUNT) {
+        printf("Block_count = %d, Wait_count = %d\n", block_count, wait_count);
 
         ++block_count;
         wait_count = 0;
@@ -312,9 +317,9 @@ bool Accelerator::do_load_content_column_major(void *nothing)
 
     //printf("wait_count = %d, column_count = %d\n", wait_count, column_count);
     if unlikely (wait_count == matrix_header.m) {
-        printf("Wait_count = %d\n", wait_count);
+        printf("Column_count = %d, Wait_count = %d\n", column_count, wait_count);
 
-        ++column_count;
+        column_count += MEM_REQ_COUNT;
         wait_count = 0;
 
         for (int i = 0; i < matrix_header.m; ++i) {
@@ -346,15 +351,15 @@ bool Accelerator::do_load_content_row_major(void *nothing)
 
     // Row-major seek
 
-    for (int j = 0; j < matrix_header.n; ++j) {
-        offset = (row_count*matrix_header.n+j) * sizeof(int);
+    for (int j = 0; j < matrix_header.n / MEM_REQ_COUNT; ++j) {
+        offset = (row_count*matrix_header.n + j * MEM_REQ_COUNT) * sizeof(int);
         cur_virt_addr = base_virt_addr + offset;
         cur_phys_addr = base_phys_addr + offset;
 
         if unlikely (!requested[j] && request_count < MAX_REQUEST_COUNT) {
             rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
-                    temp_uuid, false, 3);
-            //printf("FIRST ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
+                    temp_uuid, false, 6);
+            printf("FIRST ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             requested[j] = true;
             if (rc == ACCESS_OK) {
                 matrix_data_buf[offset] = data;
@@ -364,9 +369,9 @@ bool Accelerator::do_load_content_row_major(void *nothing)
             ++request_count;
         } else if unlikely (cache_ready_map[cur_phys_addr]) {
             rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
-                    temp_uuid, true, 3);
+                    temp_uuid, true, 6);
             matrix_data_buf[offset] = data;
-            //printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
+            printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             ++wait_count;
             cache_ready_map[cur_phys_addr] = false;
             --request_count;
@@ -374,8 +379,8 @@ bool Accelerator::do_load_content_row_major(void *nothing)
     }
 
     //printf("wait_count = %d, row_count = %d\n", wait_count, row_count);
-    if unlikely (wait_count == matrix_header.n) {
-        printf("Wait_count = %d\n", wait_count);
+    if unlikely (wait_count == matrix_header.n / MEM_REQ_COUNT) {
+        printf("Row_count = %d, Wait_count = %d\n", row_count, wait_count);
 
         ++row_count;
         wait_count = 0;
@@ -491,7 +496,7 @@ bool Accelerator::runcycle(void *nothing)
                     wait_count = 0;
                     for (int i = 0; i < MAX_SIZE_IN_TEST; ++i)
                         requested[i] = false;
-                    temp_state = Accel_Load_content_block_major;
+                    temp_state = Accel_Load_content_row_major;
                     printf("Current cycle: %ld\n", sim_cycle);
                 }
             }
@@ -507,8 +512,8 @@ bool Accelerator::runcycle(void *nothing)
                 wait_count = 0;
                 for (int i = 0; i < MAX_SIZE_IN_TEST; ++i)
                     requested[i] = false;
-                temp_state = Accel_Load_content_column_major;
-                //temp_state = Accel_Cal;
+                //temp_state = Accel_Load_content_column_major;
+                temp_state = Accel_Cal;
                 printf("Current cycle: %ld\n", sim_cycle);
             }
             break;
@@ -523,8 +528,8 @@ bool Accelerator::runcycle(void *nothing)
                 wait_count = 0;
                 for (int i = 0; i < MAX_SIZE_IN_TEST; ++i)
                     requested[i] = false;
-                temp_state = Accel_Load_content_block_major;
-                //temp_state = Accel_Cal;
+                //temp_state = Accel_Load_content_block_major;
+                temp_state = Accel_Cal;
                 printf("Current cycle: %ld\n", sim_cycle);
             }
             break;
@@ -536,7 +541,7 @@ bool Accelerator::runcycle(void *nothing)
                 row_count = 0;
                 block_count = 0;
                 request_count = 0;
-                wait_count = matrix_header.m;
+                wait_count = 0;
                 for (int i = 0; i < MAX_SIZE_IN_TEST; ++i)
                     requested[i] = false;
                 temp_state = Accel_Cal;
@@ -585,30 +590,35 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid
             Memory::MEMORY_OP_READ);
     request->set_coreSignal(&dcache_signal);
 
-    //printf("CPU ID = %d\n", request->get_coreid());
-
     if (!is_requested) {
         hit = memoryHierarchy->access_cache(request);
 
         if (!hit) {
             // Handle Cache Miss
-            //printf("Accelerator Cache Miss!\n");
             cache_ready = false;
             return ACCESS_CACHE_MISS;
         }
     }
 
-    //printf("Accelerator Cache Hit!\n");
     // On cache hit, retrieve data from the memory location.
-    // TODO: use PHYSICAL address here.
-    //printf("kernel_mode=%d, mmio=%d", ctx->kernel_mode, ctx->is_mmio_addr(virt_addr, 0));
-    bool old_kernel_mode = ctx->kernel_mode;
-    ctx->kernel_mode = true;
-    data = ctx->loadvirt(virt_addr, sizeshift); // sizeshift=3 for 64bit-data
-    ctx->kernel_mode = old_kernel_mode;
-    //data = ctx->loadphys(phys_addr, false, sizeshift); // sizeshift=3 for 64bit-data
 
-    //printf("LOAD virtaddr=%llx, data=%ld, sizeshift=%d\n", virt_addr, data, sizeshift);
+    if (sizeshift <= 3) {
+        bool old_kernel_mode = ctx->kernel_mode;
+        ctx->kernel_mode = true;
+        data = ctx->loadvirt(virt_addr, sizeshift); // sizeshift=3 for 64bit-data
+        ctx->kernel_mode = old_kernel_mode;
+    } else {
+        W64 count = 1 << (sizeshift - 3);
+
+        bool old_kernel_mode = ctx->kernel_mode;
+        ctx->kernel_mode = true;
+        for (int i = 0; i < count; ++i) {
+            // Load 8 byte at a time
+            data = ctx->loadvirt(virt_addr + i * 8, 3);
+        }
+        ctx->kernel_mode = old_kernel_mode;
+    }
+
     return ACCESS_OK;
 }
 
@@ -811,143 +821,7 @@ W64 Accelerator::exec(AcceleratorArg& arg)
 
     cache_ready = true;
     temp_state = Accel_Load_header;
-#if 0
-    W64 data;
-    int rc = load(arg.virt_addr, arg.phys_addr, data, arg.rip, arg.uuid, false);
-    printf("Load finished!\n");
-    if (rc == ACCESS_OK) {
-        printf("Loaded data = %llu\n", data);
-        return data;
-    } else if (rc == ACCESS_CACHE_MISS) {
-        printf("Memory load encounters a cache miss!\n");
 
-        return arg.virt_addr;
-    } else {
-        printf("Memory load failed!\n");
-        return arg.virt_addr;
-    }
-#endif
     return 0;
 }
 
-#if 0
-int Accelerator::load_blocked(W64 addr, W64& data)
-{
-    int rc = ACCESS_OK;
-
-    printf("Trying to load.\n");
-    cache_ready = true;
-    do {
-        if (cache_ready) {
-            //rc = load(addr, data);
-        }
-        if (rc != ACCESS_OK && rc != ACCESS_CACHE_MISS) {
-            return rc;
-        }
-    } while (rc != ACCESS_OK);
-
-    return ACCESS_OK;
-}
-#endif
-
-// Original init function content below.
-#if 0
-    //Memory::CPUController *cpu_controller =
-    //    new Memory::CPUController(id, name, memoryHierarchy);
-
-    // Initialize Cache Hierarchy
-    // TODO Move this using config files
-    // Hard-coded shared-L2 module
-
-    // CPU Controller
-    ControllerBuilder::add_new_cont(machine, 1, "core_", "cpu", 0);
-
-    // XXX This may be useless for a LAP but we leave it here to be consistent
-    // L1 insn cache
-    // TODO Replace the magic number with a built-in config script.
-    machine.add_option("L1_I_", 1, "last_private", true);
-    machine.add_option("L1_I_", 1, "private", true);
-    ControllerBuilder::add_new_cont(machine, 1, "L1_I_", "mesi_cache", 6/*L1_128K_MESI*/);
-
-    // L1 data cache
-    // TODO Replace the magic number with a built-in config script.
-    machine.add_option("L1_D_", 1, "last_private", true);
-    machine.add_option("L1_D_", 1, "private", true);
-    ControllerBuilder::add_new_cont(machine, 1, "L1_D_", "mesi_cache", 6/*L1_128K_MESI*/);
-
-    foreach(i, 1) {
-        // L1 insn cache connection
-        ConnectionDef* connDef = machine.get_new_connection_def("p2p",
-                    "p2p_core_L1_I_", 1);
-        stringbuf core_;
-        core_ << "core_" << 1;
-        machine.add_new_connection(connDef, core_.buf, INTERCONN_TYPE_I);
-
-        stringbuf L1_I_;
-        L1_I_ << "L1_I_" << 1;
-        machine.add_new_connection(connDef, L1_I_.buf, INTERCONN_TYPE_UPPER);
-
-        Controller** cont = machine.controller_hash.get(core_);
-        assert(cont);
-        CPUController* cpuCont = (CPUController*)((*cont));
-        cpuCont->set_dcacheLineBits(log2(64));
-    }
-
-    foreach(i, 1) {
-        // L1 data cache connection
-        ConnectionDef* connDef = machine.get_new_connection_def("p2p",
-                    "p2p_core_L1_D_", 1);
-        stringbuf core_;
-        core_ << "core_" << 1;
-        machine.add_new_connection(connDef, core_.buf, INTERCONN_TYPE_D);
-
-        stringbuf L1_D_;
-        L1_D_ << "L1_D_" << 1;
-        machine.add_new_connection(connDef, L1_D_.buf, INTERCONN_TYPE_UPPER);
-
-        Controller** cont = machine.controller_hash.get(core_);
-        assert(cont);
-        CPUController* cpuCont = (CPUController*)((*cont));
-        cpuCont->set_dcacheLineBits(log2(64));
-    }
-
-    // L1-L2 connection
-    foreach(i, 1) {
-        ConnectionDef* connDef = machine.get_new_connection_def("split_bus",
-                "split_bus_0", i);
-
-        foreach(j, 2) {
-            stringbuf L1_I_;
-            L1_I_ << "L1_I_" << j;
-            machine.add_new_connection(connDef, L1_I_.buf, INTERCONN_TYPE_LOWER);
-        }
-
-
-        stringbuf L2_0;
-        L2_0 << "L2_0";
-        machine.add_new_connection(connDef, L2_0.buf, INTERCONN_TYPE_UPPER);
-
-
-        foreach(j, 2) {
-            stringbuf L1_D_;
-            L1_D_ << "L1_D_" << j;
-            machine.add_new_connection(connDef, L1_D_.buf, INTERCONN_TYPE_LOWER);
-        }
-    }
-    connDef = machine.get_new_connection_def("p2p",
-            "p2p_L2_0_L1_D_0", 1);
-
-
-    stringbuf L2_0;
-    L2_0 << "L2_0";
-    machine.add_new_connection(connDef, L2_0.buf, INTERCONN_TYPE_UPPER2);
-
-    stringbuf L1_D_0;
-    L1_D_0 << "L1_D_0";
-    machine.add_new_connection(connDef, L1_D_0.buf, INTERCONN_TYPE_LOWER);
-
-    machine.setup_interconnects();
-    machine.memoryHierarchyPtr->setup_full_flags();
-
-    printf("Accelerator Initialization finished!\n");
-#endif
