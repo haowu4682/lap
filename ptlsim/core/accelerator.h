@@ -45,7 +45,7 @@ namespace Core {
         virtual void update_memory_hierarchy_ptr();
         virtual W64 exec(AcceleratorArg &arg);
 
-        virtual int load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid, bool is_requested, int sizeshift = 3);
+        virtual int load(W64 virt_addr, W64 phys_addr, void* data, W64 rip, W64 uuid, bool is_requested, int sizeshift = 3);
         virtual int load_buf(W64 virt_addr, W64 phys_addr, void *data, size_t size, W64 rip, W64 uuid, bool is_requested);
         virtual int store(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid, bool is_requested, int sizeshift = 3);
         virtual int store(W64 virt_addr, W64 phys_addr, void *data, size_t size, W64 rip, W64 uuid, bool is_requested);
