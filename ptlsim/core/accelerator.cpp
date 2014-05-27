@@ -174,24 +174,48 @@ bool Accelerator::do_load_content(void *nothing)
     return true;
 }
 
+// The Maximum number of elements in the experiment, used as array boundary.
 #define MAX_SIZE_IN_TEST 100000000
+// The row size for block-major access
 #define BLOCK_ROW_SIZE 32
+// The column size for block-major access
 #define BLOCK_COLUMN_SIZE 32
+// The row count for block-major access
 #define BLOCK_ROW_COUNT 16
+// The column count for block-major access
 #define BLOCK_COLUMN_COUNT 16
+
+
+// The maximum number of active requests in memory system.
 #define MAX_REQUEST_COUNT 32
 
+// The number of bytes in each memory request
 #define MEM_REQ_SIZE 64
+
+// The number of elements in each memory request
 #define MEM_REQ_COUNT 16
 
+// The number of words in each memory request
+#define MEM_REQ_WORDS 8
 
+// The number of rows that have been processed (used in row-major only).
 int row_count;
+// The number of columns that have been processed (used in column-major only).
 int column_count;
+// The number of blocks that have been processed (used in block-major only).
 int block_count;
+
+// The array indicates which cache line has been issued a request.
 bool requested[MAX_SIZE_IN_TEST];
+
+// wait_count indicates how many requests are still being processed by memory
+// system.
 int wait_count = 0;
+
+// request_count indicates how many active requests are in the memory system.
 int request_count = 0;
 
+// Block-major access. Please read row-major comments first
 bool Accelerator::do_load_content_block_major(void *nothing)
 {
     int rc;
@@ -209,43 +233,30 @@ bool Accelerator::do_load_content_block_major(void *nothing)
     //printf("Inside Load Content Block Major.\n");
     // Block-based seek
     for (int i = 0; i < BLOCK_ROW_SIZE * BLOCK_COLUMN_SIZE / MEM_REQ_COUNT; ++i) {
-        // Calculate block count
+        // Calculate row and column number based on block_count and block_index
+        // (i)
         W64 row_offset = (block_count / BLOCK_COLUMN_COUNT) * BLOCK_ROW_SIZE + i / (BLOCK_COLUMN_SIZE/MEM_REQ_COUNT);
         W64 column_offset = (block_count % BLOCK_COLUMN_COUNT) * BLOCK_COLUMN_SIZE + i % (BLOCK_COLUMN_SIZE/MEM_REQ_COUNT) * MEM_REQ_COUNT;
+
+        // Calculate offset using row and column number
         offset = (row_offset*matrix_header.n+column_offset) * sizeof(int);
         cur_virt_addr = base_virt_addr + offset;
         cur_phys_addr = base_phys_addr + offset;
 
-#if 0
-        if (i == 968) {
-           printf("block_count = %d, i = %d, row_offset=%d, column_offset=%d, cur_phys_addr = %p\n", block_count, i, row_offset, column_offset, cur_phys_addr);
-           if ( requested[19*50+18])
-            printf("Waiting for [19,18]\n");
-           else 
-            printf("Not Waiting for [19,18]\n");
-           if (cache_ready_map[cur_phys_addr])
-            printf("Cache ready for [19,18]\n");
-           else 
-            printf("Not cache ready for [19,18]\n");
-        }
-#endif
-
         if unlikely (!requested[i] && request_count < MAX_REQUEST_COUNT) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
-                    temp_uuid, false, 3);
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+                    temp_uuid, false, 6);
             printf("FIRST ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
             requested[i] = true;
             if (rc == ACCESS_OK) {
-                matrix_data_buf[offset] = data;
                 ++wait_count;
             } else {
                 cache_ready_map[cur_phys_addr] = false;
                 ++request_count;
             }
         } else if unlikely (cache_ready_map[cur_phys_addr]) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
-                    temp_uuid, true, 3);
-            matrix_data_buf[offset] = data;
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+                    temp_uuid, true, 6);
             printf("SECOND ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
             ++wait_count;
             cache_ready_map[cur_phys_addr] = false;
@@ -253,6 +264,7 @@ bool Accelerator::do_load_content_block_major(void *nothing)
         }
     }
 
+    // When all rows have finished, proceed to the next column
     if unlikely (wait_count >= BLOCK_ROW_SIZE * BLOCK_COLUMN_SIZE/MEM_REQ_COUNT) {
         printf("Block_count = %d, Wait_count = %d\n", block_count, wait_count);
 
@@ -264,6 +276,8 @@ bool Accelerator::do_load_content_block_major(void *nothing)
         }
     }
 
+    // When all blocks have finished, return true indicates this stage has
+    // finished.
     if (block_count >= BLOCK_ROW_COUNT * BLOCK_COLUMN_COUNT) {
         return true;
     } else {
@@ -271,6 +285,7 @@ bool Accelerator::do_load_content_block_major(void *nothing)
     }
 }
 
+// Column-major access. Please read row-major comments first.
 bool Accelerator::do_load_content_column_major(void *nothing)
 {
     int rc;
@@ -288,26 +303,26 @@ bool Accelerator::do_load_content_column_major(void *nothing)
 
     // Column-major seek
 
+    // i indicates the current row number
     for (int i = 0; i < matrix_header.m; ++i) {
+        // Calculate offset based on row number (i) and column number
         offset = (i*matrix_header.n+column_count) * sizeof(int);
         cur_virt_addr = base_virt_addr + offset;
         cur_phys_addr = base_phys_addr + offset;
 
         if unlikely (!requested[i] && request_count < MAX_REQUEST_COUNT) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
-                    temp_uuid, false, 3);
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+                    temp_uuid, false, 6);
             //printf("FIRST ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             requested[i] = true;
             if (rc == ACCESS_OK) {
-                matrix_data_buf[offset] = data;
                 ++wait_count;
             }
             cache_ready_map[cur_phys_addr] = false;
             ++request_count;
         } else if unlikely (cache_ready_map[cur_phys_addr]) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
-                    temp_uuid, true, 3);
-            matrix_data_buf[offset] = data;
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+                    temp_uuid, true, 6);
             //printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             ++wait_count;
             cache_ready_map[cur_phys_addr] = false;
@@ -316,9 +331,12 @@ bool Accelerator::do_load_content_column_major(void *nothing)
     }
 
     //printf("wait_count = %d, column_count = %d\n", wait_count, column_count);
+    // When all rows have finished, proceed to the next column
     if unlikely (wait_count == matrix_header.m) {
         printf("Column_count = %d, Wait_count = %d\n", column_count, wait_count);
 
+        // Each time, column count increases by the number of elements per cache
+        // line.
         column_count += MEM_REQ_COUNT;
         wait_count = 0;
 
@@ -327,6 +345,8 @@ bool Accelerator::do_load_content_column_major(void *nothing)
         }
     }
 
+    // When all columns have finished, return true indicates this stage has
+    // finished.
     if (column_count >= matrix_header.n) {
         return true;
     } else {
@@ -334,15 +354,23 @@ bool Accelerator::do_load_content_column_major(void *nothing)
     }
 }
 
+// Load the content of matrix based on row-major order
 bool Accelerator::do_load_content_row_major(void *nothing)
 {
     int rc;
     //bool all_ready = false;
 
+    // The address of current cache line.
     W64 cur_virt_addr, cur_phys_addr;
+
+    // The address of the first cache line (start of matrix)
     W64 base_virt_addr, base_phys_addr;
+
+    // The difference between cur_addr and base_addr
     W64 offset;
-    W64 data;
+
+    // The data
+    W64 data[MEM_REQ_COUNT];
 
     //base_virt_addr = temp_virt_addr + 2 * sizeof(int);
     //base_phys_addr = temp_phys_addr + 2 * sizeof(int);
@@ -350,35 +378,49 @@ bool Accelerator::do_load_content_row_major(void *nothing)
     base_phys_addr = temp_phys_addr;
 
     // Row-major seek
-
+    // j is the number of cache line within a row
     for (int j = 0; j < matrix_header.n / MEM_REQ_COUNT; ++j) {
+        // Calculate the offset based on row and column count
         offset = (row_count*matrix_header.n + j * MEM_REQ_COUNT) * sizeof(int);
         cur_virt_addr = base_virt_addr + offset;
         cur_phys_addr = base_phys_addr + offset;
 
+        // If the memory address has not been requested
         if unlikely (!requested[j] && request_count < MAX_REQUEST_COUNT) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
+            // Magic number 6 indicates 2^6=64 bytes
+            // Send out request
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
                     temp_uuid, false, 6);
             printf("FIRST ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             requested[j] = true;
+
+            // If cache hit (impossible for no cache case), directly store it
             if (rc == ACCESS_OK) {
-                matrix_data_buf[offset] = data;
                 ++wait_count;
             }
+
+            // Set cache ready to false to wait for the result
             cache_ready_map[cur_phys_addr] = false;
             ++request_count;
-        } else if unlikely (cache_ready_map[cur_phys_addr]) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, data, temp_rip,
+        }
+        // If the cache line is ready from the memory system
+        else if unlikely (cache_ready_map[cur_phys_addr]) {
+            // Magic number 6 indicates 2^6=64 bytes
+            // Read the data
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
                     temp_uuid, true, 6);
-            matrix_data_buf[offset] = data;
             printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             ++wait_count;
+
+            // Set cache ready to false indicates no longer need to read the
+            // data
             cache_ready_map[cur_phys_addr] = false;
             --request_count;
         }
     }
 
     //printf("wait_count = %d, row_count = %d\n", wait_count, row_count);
+    // When all elements in the same row finishes, proceed to the next row.
     if unlikely (wait_count == matrix_header.n / MEM_REQ_COUNT) {
         printf("Row_count = %d, Wait_count = %d\n", row_count, wait_count);
 
@@ -390,6 +432,8 @@ bool Accelerator::do_load_content_row_major(void *nothing)
         }
     }
 
+    // When all rows have been processed, return true indicates this stage has
+    // finished.
     if (row_count >= matrix_header.m) {
         return true;
     } else {
@@ -577,7 +621,7 @@ bool Accelerator::runcycle(void *nothing)
     return false;
 }
 
-int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid, bool is_requested, int sizeshift)
+int Accelerator::load(W64 virt_addr, W64 phys_addr, void* data, W64 rip, W64 uuid, bool is_requested, int sizeshift)
 {
     bool hit;
 
@@ -605,7 +649,7 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid
     if (sizeshift <= 3) {
         bool old_kernel_mode = ctx->kernel_mode;
         ctx->kernel_mode = true;
-        data = ctx->loadvirt(virt_addr, sizeshift); // sizeshift=3 for 64bit-data
+        *((W64*) data) = ctx->loadvirt(virt_addr, sizeshift); // sizeshift=3 for 64bit-data
         ctx->kernel_mode = old_kernel_mode;
     } else {
         W64 count = 1 << (sizeshift - 3);
@@ -614,7 +658,7 @@ int Accelerator::load(W64 virt_addr, W64 phys_addr, W64& data, W64 rip, W64 uuid
         ctx->kernel_mode = true;
         for (int i = 0; i < count; ++i) {
             // Load 8 byte at a time
-            data = ctx->loadvirt(virt_addr + i * 8, 3);
+            *(((W64*)data) + i) = ctx->loadvirt(virt_addr + i * 8, 3);
         }
         ctx->kernel_mode = old_kernel_mode;
     }
@@ -751,7 +795,7 @@ int Accelerator::load_buf(W64 virt_addr, W64 phys_addr, void *data, size_t size,
         cur_phys_addr = phys_addr + i;
 
         //printf("cur_virt_addr = %llu\n", cur_virt_addr);
-        rc = load(cur_virt_addr, cur_phys_addr, word, rip, uuid, is_requested, sizeshift);
+        rc = load(cur_virt_addr, cur_phys_addr, &word, rip, uuid, is_requested, sizeshift);
         if (rc < 0) {
             ret = ACCESS_CACHE_MISS;
         } else {
