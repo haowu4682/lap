@@ -244,7 +244,7 @@ bool Accelerator::do_load_content_block_major(void *nothing)
         cur_phys_addr = base_phys_addr + offset;
 
         if unlikely (!requested[i] && request_count < MAX_REQUEST_COUNT) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, false, 6);
             printf("FIRST ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
             requested[i] = true;
@@ -255,7 +255,7 @@ bool Accelerator::do_load_content_block_major(void *nothing)
                 ++request_count;
             }
         } else if unlikely (cache_ready_map[cur_phys_addr]) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, true, 6);
             printf("SECOND ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
             ++wait_count;
@@ -311,7 +311,7 @@ bool Accelerator::do_load_content_column_major(void *nothing)
         cur_phys_addr = base_phys_addr + offset;
 
         if unlikely (!requested[i] && request_count < MAX_REQUEST_COUNT) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, false, 6);
             //printf("FIRST ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             requested[i] = true;
@@ -321,7 +321,7 @@ bool Accelerator::do_load_content_column_major(void *nothing)
             cache_ready_map[cur_phys_addr] = false;
             ++request_count;
         } else if unlikely (cache_ready_map[cur_phys_addr]) {
-            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, true, 6);
             //printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             ++wait_count;
@@ -389,7 +389,7 @@ bool Accelerator::do_load_content_row_major(void *nothing)
         if unlikely (!requested[j] && request_count < MAX_REQUEST_COUNT) {
             // Magic number 6 indicates 2^6=64 bytes
             // Send out request
-            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, false, 6);
             printf("FIRST ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             requested[j] = true;
@@ -407,9 +407,11 @@ bool Accelerator::do_load_content_row_major(void *nothing)
         else if unlikely (cache_ready_map[cur_phys_addr]) {
             // Magic number 6 indicates 2^6=64 bytes
             // Read the data
-            rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf+offset, temp_rip,
+            rc = this->load(cur_virt_addr, cur_phys_addr,
+                    matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, true, 6);
             printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
+            printf("data = %d, offset = %d\n", matrix_data_buf[offset/sizeof(int)], offset);
             ++wait_count;
 
             // Set cache ready to false indicates no longer need to read the
@@ -556,8 +558,8 @@ bool Accelerator::runcycle(void *nothing)
                 wait_count = 0;
                 for (int i = 0; i < MAX_SIZE_IN_TEST; ++i)
                     requested[i] = false;
-                //temp_state = Accel_Load_content_column_major;
-                temp_state = Accel_Cal;
+                temp_state = Accel_Load_content_column_major;
+                //temp_state = Accel_Cal;
                 printf("Current cycle: %ld\n", sim_cycle);
             }
             break;
@@ -572,8 +574,8 @@ bool Accelerator::runcycle(void *nothing)
                 wait_count = 0;
                 for (int i = 0; i < MAX_SIZE_IN_TEST; ++i)
                     requested[i] = false;
-                //temp_state = Accel_Load_content_block_major;
-                temp_state = Accel_Cal;
+                temp_state = Accel_Load_content_block_major;
+                //temp_state = Accel_Cal;
                 printf("Current cycle: %ld\n", sim_cycle);
             }
             break;
