@@ -26,7 +26,7 @@ void lap_finish()
     lap_send_irq(0);
 }
 
-#define lap_mem_base 0x200000000L
+#define lap_mem_base 0x400000000L
 #define LAP_MEM_SIZE 24
 #define LAP_IRQ_NO 13
 

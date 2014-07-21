@@ -109,6 +109,9 @@ bool BusInterconnect::controller_request_cb(void *arg)
 {
 	Message *message = (Message*)arg;
 
+    if (message->request->get_coreid() == 1)
+        printf("Controller message in BUS controller: cycle: %llu, address: %p\n", sim_cycle, message->request->get_physical_address());
+
 	BusControllerQueue* busControllerQueue = NULL;
 	foreach(i, controllers.count()) {
 		if(controllers[i]->controller ==
@@ -137,6 +140,8 @@ bool BusInterconnect::controller_request_cb(void *arg)
 	if(!is_busy()) {
 		// address bus
 		marss_add_event(&broadcast_, 1, NULL);
+        // HAO: Remove latency for bus interconnection
+		//marss_add_event(&broadcast_, 1, &busQueueEntry);
 		set_bus_busy(true);
 	} else {
 		memdebug("Bus is busy\n");
@@ -180,6 +185,7 @@ bool BusInterconnect::broadcast_cb(void *arg)
 	else {
 		queueEntry = arbitrate_round_robin();
         marss_add_event(&broadcast_, arbitrate_latency_, queueEntry);
+        //marss_add_event(&broadcast_, 0, queueEntry);
         return true;
     }
 
@@ -188,6 +194,8 @@ bool BusInterconnect::broadcast_cb(void *arg)
 		return true;
 	}
 
+    if (queueEntry->request->get_coreid() == 1)
+        printf("Broadcast message in BUS controller: cycle: %llu, address: %p\n", sim_cycle, queueEntry->request->get_physical_address());
 	// first check if any of the other controller's receive queue is
 	// full or not
 	// if its full the don't broadcast untill it has a free

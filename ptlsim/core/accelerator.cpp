@@ -16,7 +16,7 @@ using namespace Memory;
 
 uint64_t lap_mmio_reg;
 uint64_t lap_buf_addr;
-#define LAP_MMIO_ADDR 0x200000000
+#define LAP_MMIO_ADDR 0x400000000L
 
 uint64_t cal_cycle_count;
 uint64_t max_cal_cycle;
@@ -177,13 +177,13 @@ bool Accelerator::do_load_content(void *nothing)
 // The Maximum number of elements in the experiment, used as array boundary.
 #define MAX_SIZE_IN_TEST 100000000
 // The row size for block-major access
-#define BLOCK_ROW_SIZE 32
+#define BLOCK_ROW_SIZE 64
 // The column size for block-major access
-#define BLOCK_COLUMN_SIZE 32
+#define BLOCK_COLUMN_SIZE 64
 // The row count for block-major access
-#define BLOCK_ROW_COUNT 16
+#define BLOCK_ROW_COUNT 256
 // The column count for block-major access
-#define BLOCK_COLUMN_COUNT 16
+#define BLOCK_COLUMN_COUNT 256
 
 
 // The maximum number of active requests in memory system.
@@ -228,7 +228,6 @@ bool Accelerator::do_load_content_block_major(void *nothing)
     base_virt_addr = temp_virt_addr + 2 * sizeof(int);
     base_phys_addr = temp_phys_addr + 2 * sizeof(int);
 
-    //printf("Inside Load Content Block Major.\n");
     // Block-based seek
     for (int i = 0; i < BLOCK_ROW_SIZE * BLOCK_COLUMN_SIZE / MEM_REQ_COUNT; ++i) {
         // Calculate row and column number based on block_count and block_index
@@ -256,6 +255,7 @@ bool Accelerator::do_load_content_block_major(void *nothing)
             rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, true, 6);
             printf("SECOND ATTEMP to load [%lld, %lld], %p, result = %d, simcycle = %ld\n", row_offset, column_offset, cur_phys_addr, rc, sim_cycle);
+            //printf("data = %d, offset = %d\n", matrix_data_buf[offset/sizeof(int)], offset);
             ++wait_count;
             cache_ready_map[cur_phys_addr] = false;
             --request_count;
@@ -309,7 +309,7 @@ bool Accelerator::do_load_content_column_major(void *nothing)
         if unlikely (!requested[i] && request_count < MAX_REQUEST_COUNT) {
             rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, false, 6);
-            //printf("FIRST ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
+            printf("FIRST ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
             requested[i] = true;
             if (rc == ACCESS_OK) {
                 ++wait_count;
@@ -319,7 +319,8 @@ bool Accelerator::do_load_content_column_major(void *nothing)
         } else if unlikely (cache_ready_map[cur_phys_addr]) {
             rc = this->load(cur_virt_addr, cur_phys_addr, matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, true, 6);
-            //printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
+            printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
+            //printf("data = %d, offset = %d\n", matrix_data_buf[offset/sizeof(int)], offset);
             ++wait_count;
             cache_ready_map[cur_phys_addr] = false;
             --request_count;
@@ -406,8 +407,8 @@ bool Accelerator::do_load_content_row_major(void *nothing)
             rc = this->load(cur_virt_addr, cur_phys_addr,
                     matrix_data_buf + offset / sizeof(int), temp_rip,
                     temp_uuid, true, 6);
-            printf("SECOND ATTEMP to load %p, result = %d, simcycle = %ld\n", cur_phys_addr, rc, sim_cycle);
-            printf("data = %d, offset = %d\n", matrix_data_buf[offset/sizeof(int)], offset);
+            printf("SECOND ATTEMP to load %p, result = %d, simcycle = %llu\n", cur_phys_addr, rc, sim_cycle);
+            //printf("data = %d, offset = %d\n", matrix_data_buf[offset/sizeof(int)], offset);
             ++wait_count;
 
             // Set cache ready to false indicates no longer need to read the
@@ -539,7 +540,7 @@ bool Accelerator::runcycle(void *nothing)
                     for (int i = 0; i < MAX_SIZE_IN_TEST; ++i)
                         requested[i] = false;
                     temp_state = Accel_Load_content_row_major;
-                    printf("Current cycle: %ld\n", sim_cycle);
+                    printf("Current cycle: %llu\n", sim_cycle);
                 }
             }
             break;
@@ -556,7 +557,7 @@ bool Accelerator::runcycle(void *nothing)
                     requested[i] = false;
                 temp_state = Accel_Load_content_column_major;
                 //temp_state = Accel_Cal;
-                printf("Current cycle: %ld\n", sim_cycle);
+                printf("Current cycle: %llu\n", sim_cycle);
             }
             break;
 
@@ -570,9 +571,9 @@ bool Accelerator::runcycle(void *nothing)
                 wait_count = 0;
                 for (int i = 0; i < MAX_SIZE_IN_TEST; ++i)
                     requested[i] = false;
-                temp_state = Accel_Load_content_block_major;
-                //temp_state = Accel_Cal;
-                printf("Current cycle: %ld\n", sim_cycle);
+                //temp_state = Accel_Load_content_block_major;
+                temp_state = Accel_Cal;
+                printf("Current cycle: %llu\n", sim_cycle);
             }
             break;
 

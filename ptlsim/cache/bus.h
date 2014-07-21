@@ -33,9 +33,11 @@
 
 namespace Memory {
 
-// Bus Dealys
+// Bus Delays
+//const int BUS_ARBITRATE_DELAY = 1;
+//const int BUS_BROADCASTS_DELAY = 6;
 const int BUS_ARBITRATE_DELAY = 1;
-const int BUS_BROADCASTS_DELAY = 6;
+const int BUS_BROADCASTS_DELAY = 0;
 
 struct BusControllerQueue;
 

@@ -121,6 +121,9 @@ bool MemoryController::handle_interconnect_cb(void *arg)
 
 	memdebug("Received message in Memory controller: " ,get_name() , " ", *message, endl);
 
+    if (message->request->get_coreid() == 1)
+        printf("Received message in memory controller: cycle: %llu, address: %p\n", sim_cycle, message->request->get_physical_address());
+
 	if(message->hasData && message->request->get_type() !=
 			MEMORY_OP_UPDATE)
 		return true;
@@ -282,6 +285,9 @@ void MemoryController::read_return_cb(uint id, uint64_t addr, uint64_t cycle)
 bool MemoryController::access_completed_cb(void *arg)
 {
     MemoryQueueEntry *queueEntry = (MemoryQueueEntry*)arg;
+
+    if (queueEntry->request->get_coreid() == 1)
+        printf("Completed message in memory controller: cycle: %llu, address: %p\n", sim_cycle, queueEntry->request->get_physical_address());
 
 #ifndef DRAMSIM
     bool kernel = queueEntry->request->is_kernel();

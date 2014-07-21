@@ -64,6 +64,8 @@ bool CPUController::handle_interconnect_cb(void *arg)
 
 	memdebug("Received message in controller: ", get_name(), endl);
 
+    if (message->request->get_coreid() == 1)
+        printf("Completed message in CPU controller: cycle: %llu, address: %p\n", sim_cycle, message->request->get_physical_address());
 	// ignore the evict message
 	if unlikely (message->request->get_type() == MEMORY_OP_EVICT)
 		return true;
@@ -349,6 +351,8 @@ bool CPUController::cache_access_cb(void *arg)
 	if unlikely (queueEntry->annuled || queueEntry->cycles > 0)
 		return true;
 
+    if (queueEntry->request->get_coreid() == 1)
+        printf("Received message in CPU controller: cycle: %llu, address: %p\n", sim_cycle, queueEntry->request->get_physical_address());
     /* Send request to corresponding interconnect */
 	Interconnect *interconnect;
 	if unlikely (queueEntry->request->is_instruction())
